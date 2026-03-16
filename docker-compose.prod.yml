@@ -1,0 +1,286 @@
+# ============================================
+# Portal RH EnterSys - Production
+# Standard: Traefik + health checks + logging
+# Domain: rh.entersys.mx
+# ============================================
+
+services:
+  # --- React SPA (Portal RH) ---
+  portal-rh:
+    build:
+      context: .
+      args:
+        VITE_FRAPPE_URL: https://rh.entersys.mx
+    container_name: portal-rh
+    restart: unless-stopped
+    depends_on:
+      frappe-frontend:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.portal-rh.rule=Host(`rh.entersys.mx`)"
+      - "traefik.http.routers.portal-rh.entrypoints=websecure"
+      - "traefik.http.routers.portal-rh.tls.certresolver=letsencrypt"
+      - "traefik.http.services.portal-rh.loadbalancer.server.port=80"
+    networks:
+      - traefik
+      - portal-rh-internal
+    deploy:
+      resources:
+        reservations:
+          memory: 128M
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        tag: "portal-rh"
+
+  # --- Frappe HR Backend ---
+  frappe-backend:
+    image: frappe/erpnext:v15
+    container_name: frappe-backend
+    restart: unless-stopped
+    depends_on:
+      frappe-mariadb:
+        condition: service_healthy
+      frappe-redis-cache:
+        condition: service_started
+      frappe-redis-queue:
+        condition: service_started
+    environment:
+      - FRAPPE_SITE_NAME_HEADER=${FRAPPE_SITE_NAME}
+    volumes:
+      - frappe-sites:/home/frappe/frappe-bench/sites
+      - frappe-logs:/home/frappe/frappe-bench/logs
+    networks:
+      - portal-rh-internal
+    deploy:
+      resources:
+        reservations:
+          memory: 512M
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/api/method/ping || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        tag: "frappe-backend"
+
+  # --- Frappe Frontend (nginx proxy interno) ---
+  frappe-frontend:
+    image: frappe/erpnext:v15
+    container_name: frappe-frontend
+    command: ["nginx-entrypoint.sh"]
+    restart: unless-stopped
+    depends_on:
+      frappe-backend:
+        condition: service_healthy
+      frappe-websocket:
+        condition: service_started
+    environment:
+      BACKEND: frappe-backend:8000
+      SOCKETIO: frappe-websocket:9000
+      FRAPPE_SITE_NAME_HEADER: ${FRAPPE_SITE_NAME}
+      UPSTREAM_REAL_IP_ADDRESS: 127.0.0.1
+      UPSTREAM_REAL_IP_HEADER: X-Forwarded-For
+      UPSTREAM_REAL_IP_RECURSIVE: "off"
+      PROXY_READ_TIMEOUT: 120
+      CLIENT_MAX_BODY_SIZE: 50m
+    volumes:
+      - frappe-sites:/home/frappe/frappe-bench/sites
+      - frappe-logs:/home/frappe/frappe-bench/logs
+    networks:
+      - portal-rh-internal
+    deploy:
+      resources:
+        reservations:
+          memory: 128M
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        tag: "frappe-frontend"
+
+  # --- Frappe Websocket ---
+  frappe-websocket:
+    image: frappe/erpnext:v15
+    container_name: frappe-websocket
+    command: ["node", "/home/frappe/frappe-bench/apps/frappe/socketio.js"]
+    restart: unless-stopped
+    depends_on:
+      frappe-backend:
+        condition: service_healthy
+    volumes:
+      - frappe-sites:/home/frappe/frappe-bench/sites
+      - frappe-logs:/home/frappe/frappe-bench/logs
+    networks:
+      - portal-rh-internal
+    deploy:
+      resources:
+        reservations:
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+        tag: "frappe-websocket"
+
+  # --- Frappe Workers ---
+  frappe-worker:
+    image: frappe/erpnext:v15
+    container_name: frappe-worker
+    command: ["bench", "worker", "--queue", "short,default"]
+    restart: unless-stopped
+    depends_on:
+      frappe-backend:
+        condition: service_healthy
+    volumes:
+      - frappe-sites:/home/frappe/frappe-bench/sites
+      - frappe-logs:/home/frappe/frappe-bench/logs
+    networks:
+      - portal-rh-internal
+    deploy:
+      resources:
+        reservations:
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+        tag: "frappe-worker"
+
+  # --- Frappe Scheduler ---
+  frappe-scheduler:
+    image: frappe/erpnext:v15
+    container_name: frappe-scheduler
+    command: ["bench", "schedule"]
+    restart: unless-stopped
+    depends_on:
+      frappe-backend:
+        condition: service_healthy
+    volumes:
+      - frappe-sites:/home/frappe/frappe-bench/sites
+      - frappe-logs:/home/frappe/frappe-bench/logs
+    networks:
+      - portal-rh-internal
+    deploy:
+      resources:
+        reservations:
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+        tag: "frappe-scheduler"
+
+  # --- MariaDB ---
+  frappe-mariadb:
+    image: mariadb:10.11
+    container_name: frappe-mariadb
+    restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+      - --skip-innodb-read-only-compressed
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+    volumes:
+      - frappe-mariadb-data:/var/lib/mysql
+    networks:
+      - portal-rh-internal
+    deploy:
+      resources:
+        reservations:
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "--password=${MARIADB_ROOT_PASSWORD}"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        tag: "frappe-mariadb"
+
+  # --- Redis Cache ---
+  frappe-redis-cache:
+    image: redis:7-alpine
+    container_name: frappe-redis-cache
+    restart: unless-stopped
+    networks:
+      - portal-rh-internal
+    deploy:
+      resources:
+        reservations:
+          memory: 64M
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+        tag: "frappe-redis-cache"
+
+  # --- Redis Queue ---
+  frappe-redis-queue:
+    image: redis:7-alpine
+    container_name: frappe-redis-queue
+    restart: unless-stopped
+    networks:
+      - portal-rh-internal
+    deploy:
+      resources:
+        reservations:
+          memory: 64M
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+        tag: "frappe-redis-queue"
+
+networks:
+  traefik:
+    external: true
+  portal-rh-internal:
+    driver: bridge
+
+volumes:
+  frappe-mariadb-data:
+  frappe-sites:
+  frappe-logs:
