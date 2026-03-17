@@ -9,7 +9,6 @@ import {
   Rocket,
   PartyPopper,
 } from 'lucide-react';
-import { clsx } from 'clsx';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuthStore } from '@/store/authStore';
 
