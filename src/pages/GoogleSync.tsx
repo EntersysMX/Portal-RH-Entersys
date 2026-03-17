@@ -37,7 +37,7 @@ export default function GoogleSync() {
 
   // Config
   const [config, setConfig] = useState<GoogleConfig>({
-    clientId: localStorage.getItem('google_client_id') || '223220955832-m336o3o2fnlv8tr6rm3lccca0rm56kri.apps.googleusercontent.com',
+    clientId: localStorage.getItem('google_client_id') || '976421339746-imv4i7avl2g3b5umlq8ts9u9l4ahnjs5.apps.googleusercontent.com',
     domain: localStorage.getItem('google_domain') || 'entersys.com',
     defaultCompany: localStorage.getItem('google_default_company') || 'Entersys',
   });
