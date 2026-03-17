@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { frappeTestConnection } from '@/api/client';
 import { usePermissions } from '@/hooks/usePermissions';
+import { RestartTourButton } from '@/components/onboarding/OnboardingTour';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -306,6 +307,23 @@ export default function Settings() {
       {isAdmin && (
         <GoogleWorkspaceCard onNavigate={() => navigate('/google-sync')} />
       )}
+
+      {/* Tour */}
+      <div className="card p-6">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="rounded-lg bg-accent-50 p-2">
+            <Cpu className="h-5 w-5 text-accent-600" />
+          </div>
+          <div>
+            <h2 className="font-semibold text-gray-900">Tour de Bienvenida</h2>
+            <p className="text-sm text-gray-500">Recorrido guiado por la plataforma</p>
+          </div>
+        </div>
+        <p className="mb-4 text-sm text-gray-500">
+          Si quieres volver a ver el recorrido interactivo que explica cada seccion de EnterHR, puedes reiniciarlo aqui.
+        </p>
+        <RestartTourButton />
+      </div>
 
       {/* AI */}
       <div className="card p-6">

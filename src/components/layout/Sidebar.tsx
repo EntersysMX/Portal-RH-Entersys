@@ -74,7 +74,7 @@ export default function Sidebar() {
       )}
     >
       {/* Logo */}
-      <div className="flex h-16 items-center justify-between border-b border-gray-200 px-4">
+      <div data-tour="sidebar-logo" className="flex h-16 items-center justify-between border-b border-gray-200 px-4">
         {!collapsed && (
           <div className="flex items-center gap-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-600">
@@ -112,11 +112,15 @@ export default function Sidebar() {
                 Administración
               </p>
             )}
-            {mainNav.map((item) => (
+            <div data-tour="sidebar-admin-nav">
+            {mainNav.map((item) => {
+              const tourId = item.href.replace(/\//g, '-').replace(/^-/, '');
+              return (
               <NavLink
                 key={item.href}
                 to={item.href}
                 end={item.href === '/dashboard'}
+                data-tour={`nav-${tourId}`}
                 className={({ isActive }) =>
                   clsx(
                     'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
@@ -130,7 +134,9 @@ export default function Sidebar() {
                 <item.icon className="h-5 w-5 flex-shrink-0" />
                 {!collapsed && <span>{item.name}</span>}
               </NavLink>
-            ))}
+              );
+            })}
+            </div>
           </>
         )}
 
@@ -147,11 +153,15 @@ export default function Sidebar() {
                 {isEmployeeOnly ? 'Mi Portal' : 'Portal Empleado'}
               </p>
             )}
-            {portalNav.map((item) => (
+            <div data-tour="sidebar-portal-nav">
+            {portalNav.map((item) => {
+              const sectionName = item.section;
+              return (
               <NavLink
                 key={item.href}
                 to={item.href}
                 end={item.href === '/portal'}
+                data-tour={`nav-${sectionName}`}
                 className={({ isActive }) =>
                   clsx(
                     'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
@@ -165,7 +175,9 @@ export default function Sidebar() {
                 <item.icon className="h-5 w-5 flex-shrink-0" />
                 {!collapsed && <span>{item.name}</span>}
               </NavLink>
-            ))}
+              );
+            })}
+            </div>
           </>
         )}
       </nav>

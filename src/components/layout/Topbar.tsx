@@ -35,7 +35,7 @@ export default function Topbar() {
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-gray-200 bg-white/80 px-6 backdrop-blur-md">
       {/* Search */}
-      <div className="relative w-full max-w-md">
+      <div data-tour="topbar-search" className="relative w-full max-w-md">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
         <input
           type="text"
@@ -53,6 +53,7 @@ export default function Topbar() {
 
         {/* Notifications */}
         <button
+          data-tour="topbar-notifications"
           onClick={() => navigate(isEmployeeOnly ? '/portal/notices' : '/notices')}
           className="relative rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
           title="Avisos"
@@ -62,7 +63,7 @@ export default function Topbar() {
         </button>
 
         {/* User menu */}
-        <div className="relative" ref={menuRef}>
+        <div data-tour="topbar-user" className="relative" ref={menuRef}>
           <button
             onClick={() => setShowUserMenu(!showUserMenu)}
             className="flex items-center gap-3 rounded-lg p-1.5 transition-colors hover:bg-gray-100"
