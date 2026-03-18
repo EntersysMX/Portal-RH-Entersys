@@ -720,24 +720,40 @@ export async function downloadPayrollExcel(slips: SalarySlip[]): Promise<void> {
 // 5. PLANTILLA DE CARGA MASIVA DE EMPLEADOS
 // ============================================
 
-export async function downloadPlantillaCargaMasiva(): Promise<void> {
+export interface BulkTemplateCatalogs {
+  companies?: string[];
+  departments?: string[];
+  designations?: string[];
+  branches?: string[];
+  employmentTypes?: string[];
+  employees?: { id: string; name: string }[];
+}
+
+export async function downloadPlantillaCargaMasiva(dynamicCatalogs?: BulkTemplateCatalogs): Promise<void> {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'EnterHR by EnterSys';
   wb.created = new Date();
 
   // ---- Catálogos (hoja oculta para validaciones) ----
   const wsCat = wb.addWorksheet('Catalogos', { state: 'veryHidden' });
-  const catalogos = {
-    genero: ['Male', 'Female', 'Other'],
-    tipo_empleo: ['Full-time', 'Part-time', 'Contract', 'Intern', 'Commission', 'Freelance', 'Piecework'],
-    estado_civil: ['Single', 'Married', 'Divorced', 'Widowed'],
+  const catalogos: Record<string, string[]> = {
+    genero: ['Masculino', 'Femenino', 'Otro'],
+    tipo_empleo: dynamicCatalogs?.employmentTypes?.length
+      ? dynamicCatalogs.employmentTypes
+      : ['Tiempo Completo', 'Medio Tiempo', 'Contrato', 'Becario', 'Comisión', 'Freelance', 'Por Obra'],
+    estado_civil: ['Soltero(a)', 'Casado(a)', 'Divorciado(a)', 'Viudo(a)'],
     grupo_sanguineo: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'],
     moneda: ['MXN', 'USD'],
     bancos: ['BBVA', 'Santander', 'Banorte', 'HSBC', 'Scotiabank', 'Citibanamex', 'Banco Azteca', 'Inbursa', 'BanCoppel', 'Banregio', 'Afirme', 'Otro'],
     parentesco: ['Padre', 'Madre', 'Esposo(a)', 'Hermano(a)', 'Hijo(a)', 'Otro'],
+    empresa: dynamicCatalogs?.companies ?? [],
+    departamento: dynamicCatalogs?.departments ?? [],
+    puesto: dynamicCatalogs?.designations ?? [],
+    sucursal: dynamicCatalogs?.branches ?? [],
+    reporta_a: dynamicCatalogs?.employees?.map(e => e.id) ?? [],
   };
-  // Escribir catálogos en columnas
-  const catKeys = Object.keys(catalogos) as (keyof typeof catalogos)[];
+  // Escribir catálogos en columnas (solo los que tienen valores)
+  const catKeys = Object.keys(catalogos).filter(k => catalogos[k].length > 0);
   catKeys.forEach((key, colIdx) => {
     const col = colIdx + 1;
     wsCat.getCell(1, col).value = key;
@@ -747,8 +763,9 @@ export async function downloadPlantillaCargaMasiva(): Promise<void> {
   });
 
   // Helper para referencia de catálogo
-  const catRef = (key: keyof typeof catalogos) => {
+  const catRef = (key: string) => {
     const colIdx = catKeys.indexOf(key) + 1;
+    if (colIdx === 0) return '';
     const colLetter = String.fromCharCode(64 + colIdx);
     const count = catalogos[key].length;
     return `Catalogos!$${colLetter}$2:$${colLetter}$${count + 1}`;
@@ -838,7 +855,8 @@ export async function downloadPlantillaCargaMasiva(): Promise<void> {
     width: number;
     required: boolean;
     section: 'personal' | 'laboral' | 'identificacion' | 'demografico' | 'contacto' | 'bancario' | 'emergencia' | 'compensacion' | 'organizacion';
-    validation?: keyof typeof catalogos;
+    validation?: string;
+    softValidation?: boolean; // true = dropdown sugerencias, false = dropdown estricto
     dateFormat?: boolean;
     example: string | number;
     tooltip?: string;
@@ -850,21 +868,21 @@ export async function downloadPlantillaCargaMasiva(): Promise<void> {
     { header: 'Segundo Nombre', key: 'middle_name', width: 18, required: false, section: 'personal', example: '', tooltip: 'Segundo nombre (opcional)' },
     { header: 'Apellido Paterno *', key: 'last_name', width: 20, required: true, section: 'personal', example: 'PÉREZ', tooltip: 'Primer apellido' },
     { header: 'Apellido Materno', key: 'last_name_2', width: 20, required: false, section: 'personal', example: 'GARCÍA', tooltip: 'Segundo apellido' },
-    { header: 'Género *', key: 'gender', width: 14, required: true, section: 'personal', validation: 'genero', example: 'Male', tooltip: 'Male, Female, Other' },
+    { header: 'Género *', key: 'gender', width: 14, required: true, section: 'personal', validation: 'genero', example: 'Masculino', tooltip: 'Masculino, Femenino, Otro' },
     { header: 'Fecha Nacimiento *', key: 'date_of_birth', width: 18, required: true, section: 'personal', dateFormat: true, example: '1990-05-15', tooltip: 'Formato: AAAA-MM-DD' },
     // Datos Laborales (G-L)
     { header: 'Fecha Ingreso *', key: 'date_of_joining', width: 18, required: true, section: 'laboral', dateFormat: true, example: '2024-01-15', tooltip: 'Formato: AAAA-MM-DD' },
-    { header: 'Empresa *', key: 'company', width: 28, required: true, section: 'laboral', example: 'ENTERSYS CONSULTORES', tooltip: 'Nombre exacto de la empresa' },
-    { header: 'Departamento *', key: 'department', width: 22, required: true, section: 'laboral', example: 'Tecnología', tooltip: 'Departamento del catálogo' },
-    { header: 'Puesto *', key: 'designation', width: 22, required: true, section: 'laboral', example: 'Desarrollador Senior', tooltip: 'Puesto/cargo' },
-    { header: 'Tipo Empleo *', key: 'employment_type', width: 16, required: true, section: 'laboral', validation: 'tipo_empleo', example: 'Full-time', tooltip: 'Tipo de contratación' },
-    { header: 'Sucursal', key: 'branch', width: 18, required: false, section: 'laboral', example: 'CDMX', tooltip: 'Sucursal u oficina' },
+    { header: 'Empresa *', key: 'company', width: 28, required: true, section: 'laboral', validation: 'empresa', softValidation: true, example: 'ENTERSYS CONSULTORES', tooltip: 'Seleccione o escriba nueva empresa' },
+    { header: 'Departamento *', key: 'department', width: 22, required: true, section: 'laboral', validation: 'departamento', softValidation: true, example: 'Tecnología', tooltip: 'Seleccione o escriba nuevo departamento' },
+    { header: 'Puesto *', key: 'designation', width: 22, required: true, section: 'laboral', validation: 'puesto', softValidation: true, example: 'Desarrollador Senior', tooltip: 'Seleccione o escriba nuevo puesto' },
+    { header: 'Tipo Empleo *', key: 'employment_type', width: 16, required: true, section: 'laboral', validation: 'tipo_empleo', example: 'Tiempo Completo', tooltip: 'Seleccione tipo de contratación' },
+    { header: 'Sucursal', key: 'branch', width: 18, required: false, section: 'laboral', validation: 'sucursal', softValidation: true, example: 'CDMX', tooltip: 'Seleccione o escriba nueva sucursal' },
     // Identificación MX (M-O)
     { header: 'RFC', key: 'rfc', width: 18, required: false, section: 'identificacion', example: 'PEGJ900515AB1', tooltip: '13 caracteres (persona física)' },
     { header: 'CURP', key: 'curp', width: 22, required: false, section: 'identificacion', example: 'PEGJ900515HDFRRC09', tooltip: '18 caracteres' },
     { header: 'NSS (IMSS)', key: 'nss', width: 16, required: false, section: 'identificacion', example: '12345678901', tooltip: 'Número de Seguridad Social' },
     // Datos Demográficos (P-Q)
-    { header: 'Estado Civil', key: 'marital_status', width: 14, required: false, section: 'demografico', validation: 'estado_civil', example: 'Single', tooltip: 'Single, Married, Divorced, Widowed' },
+    { header: 'Estado Civil', key: 'marital_status', width: 14, required: false, section: 'demografico', validation: 'estado_civil', example: 'Soltero(a)', tooltip: 'Soltero(a), Casado(a), Divorciado(a), Viudo(a)' },
     { header: 'Grupo Sanguíneo', key: 'blood_group', width: 16, required: false, section: 'demografico', validation: 'grupo_sanguineo', example: 'O+', tooltip: 'Tipo de sangre' },
     // Contacto (R-V)
     { header: 'Teléfono Celular', key: 'cell_phone', width: 18, required: false, section: 'contacto', example: '+52 55 1234 5678', tooltip: 'Incluir código de país' },
@@ -884,7 +902,7 @@ export async function downloadPlantillaCargaMasiva(): Promise<void> {
     { header: 'Salario Mensual (CTC)', key: 'ctc', width: 20, required: false, section: 'compensacion', example: 25000, tooltip: 'Costo Total para la empresa (mensual)' },
     { header: 'Moneda', key: 'salary_currency', width: 10, required: false, section: 'compensacion', validation: 'moneda', example: 'MXN', tooltip: 'MXN o USD' },
     // Organización (AE)
-    { header: 'Reporta a (ID)', key: 'reports_to', width: 20, required: false, section: 'organizacion', example: 'HR-EMP-00001', tooltip: 'ID del supervisor' },
+    { header: 'Reporta a (ID)', key: 'reports_to', width: 20, required: false, section: 'organizacion', validation: 'reporta_a', softValidation: true, example: 'HR-EMP-00001', tooltip: 'ID del supervisor (ver hoja Referencia)' },
   ];
 
   const sectionColors: Record<string, string> = {
@@ -1040,17 +1058,22 @@ export async function downloadPlantillaCargaMasiva(): Promise<void> {
   // Aplicar validaciones de datos (dropdowns) en filas 6-56
   columns.forEach((col, idx) => {
     if (col.validation) {
+      const ref = catRef(col.validation);
+      if (!ref) return; // Skip if catalog is empty
       for (let r = 6; r <= 56; r++) {
         wsEmp.getCell(r, idx + 1).dataValidation = {
           type: 'list',
           allowBlank: !col.required,
-          formulae: [catRef(col.validation)],
-          showErrorMessage: true,
-          errorTitle: 'Valor no válido',
-          error: `Seleccione un valor de la lista para "${col.header.replace(' *', '')}".`,
+          formulae: [ref],
+          // softValidation: dropdown as suggestion only (no error blocking)
+          showErrorMessage: !col.softValidation,
+          errorTitle: col.softValidation ? '' : 'Valor no válido',
+          error: col.softValidation ? '' : `Seleccione un valor de la lista para "${col.header.replace(' *', '')}".`,
           showInputMessage: true,
           promptTitle: col.header.replace(' *', ''),
-          prompt: col.tooltip || 'Seleccione un valor de la lista',
+          prompt: col.softValidation
+            ? `Sugerencias del catálogo. Puede escribir un valor nuevo si no aparece en la lista.`
+            : col.tooltip || 'Seleccione un valor de la lista',
         };
       }
     }
@@ -1094,7 +1117,9 @@ export async function downloadPlantillaCargaMasiva(): Promise<void> {
   applyBrandHeader(wsCatVis, 'Catálogos de Referencia', 'Valores aceptados para campos con lista desplegable', 4);
 
   let catR = 5;
-  const catEntries: [string, string[]][] = [
+
+  // Catálogos fijos (siempre presentes)
+  const fixedCatEntries: [string, string[]][] = [
     ['Género', catalogos.genero],
     ['Tipo de Empleo', catalogos.tipo_empleo],
     ['Estado Civil', catalogos.estado_civil],
@@ -1104,12 +1129,23 @@ export async function downloadPlantillaCargaMasiva(): Promise<void> {
     ['Parentesco', catalogos.parentesco],
   ];
 
-  catEntries.forEach(([title, values]) => {
+  // Catálogos dinámicos (de la BD, pueden estar vacíos)
+  const dynamicCatEntries: [string, string[]][] = [
+    ['Empresas (del sistema)', catalogos.empresa ?? []],
+    ['Departamentos (del sistema)', catalogos.departamento ?? []],
+    ['Puestos (del sistema)', catalogos.puesto ?? []],
+    ['Sucursales (del sistema)', catalogos.sucursal ?? []],
+  ].filter(([, vals]) => vals.length > 0) as [string, string[]][];
+
+  const allCatEntries = [...fixedCatEntries, ...dynamicCatEntries];
+
+  allCatEntries.forEach(([title, values]) => {
+    const isDynamic = title.includes('(del sistema)');
     const titleRow = wsCatVis.getRow(catR);
     wsCatVis.mergeCells(catR, 1, catR, 4);
     titleRow.getCell(1).value = title;
     titleRow.getCell(1).font = { name: 'Calibri', size: 11, bold: true, color: { argb: BRAND.headerText } };
-    titleRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.primary } };
+    titleRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isDynamic ? BRAND.accent : BRAND.primary } };
     titleRow.getCell(1).alignment = { horizontal: 'left', indent: 1 };
     catR++;
 
@@ -1119,7 +1155,7 @@ export async function downloadPlantillaCargaMasiva(): Promise<void> {
       for (let j = 0; j < 4 && i + j < values.length; j++) {
         row.getCell(j + 1).value = values[i + j];
         row.getCell(j + 1).font = { name: 'Calibri', size: 10 };
-        row.getCell(j + 1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.sectionBg } };
+        row.getCell(j + 1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isDynamic ? BRAND.lightPurple : BRAND.sectionBg } };
         row.getCell(j + 1).border = { bottom: { style: 'hair', color: { argb: BRAND.border } } };
       }
       catR++;
@@ -1127,9 +1163,44 @@ export async function downloadPlantillaCargaMasiva(): Promise<void> {
     catR++; // Espacio entre catálogos
   });
 
+  // Empleados existentes (para referencia de reports_to)
+  if (dynamicCatalogs?.employees && dynamicCatalogs.employees.length > 0) {
+    const empTitleRow = wsCatVis.getRow(catR);
+    wsCatVis.mergeCells(catR, 1, catR, 4);
+    empTitleRow.getCell(1).value = 'Empleados existentes (para Reporta a)';
+    empTitleRow.getCell(1).font = { name: 'Calibri', size: 11, bold: true, color: { argb: BRAND.headerText } };
+    empTitleRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.orange } };
+    empTitleRow.getCell(1).alignment = { horizontal: 'left', indent: 1 };
+    catR++;
+
+    // Header
+    const empHeaderRow = wsCatVis.getRow(catR);
+    empHeaderRow.getCell(1).value = 'ID Empleado';
+    empHeaderRow.getCell(2).value = 'Nombre';
+    empHeaderRow.eachCell((cell) => {
+      cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: BRAND.headerText } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '6B7280' } };
+    });
+    catR++;
+
+    for (const emp of dynamicCatalogs.employees) {
+      const row = wsCatVis.getRow(catR);
+      row.getCell(1).value = emp.id;
+      row.getCell(1).font = { name: 'Calibri', size: 10, bold: true };
+      row.getCell(2).value = emp.name;
+      row.getCell(2).font = { name: 'Calibri', size: 10 };
+      row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7ED' } };
+      row.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7ED' } };
+      row.getCell(1).border = { bottom: { style: 'hair', color: { argb: BRAND.border } } };
+      row.getCell(2).border = { bottom: { style: 'hair', color: { argb: BRAND.border } } };
+      catR++;
+    }
+    catR++;
+  }
+
   addFooter(wsCatVis, catR + 1, 4);
-  wsCatVis.getColumn(1).width = 22;
-  wsCatVis.getColumn(2).width = 22;
+  wsCatVis.getColumn(1).width = 24;
+  wsCatVis.getColumn(2).width = 30;
   wsCatVis.getColumn(3).width = 22;
   wsCatVis.getColumn(4).width = 22;
 

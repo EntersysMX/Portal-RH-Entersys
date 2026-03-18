@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Download, User, Upload } from 'lucide-react';
+import { Plus, Search, Download, User, Upload, MoreVertical, Power, PowerOff, Ban, Trash2 } from 'lucide-react';
 import DataTable, { Column } from '@/components/ui/DataTable';
 import StatusBadge from '@/components/ui/StatusBadge';
 import Modal from '@/components/ui/Modal';
 import BulkUploadModal from '@/components/employees/BulkUploadModal';
 import RoleGuard from '@/components/auth/RoleGuard';
 import ComboSelect from '@/components/ui/ComboSelect';
-import { useEmployees, useCreateEmployee, useDepartments, useDesignations, useCompanies } from '@/hooks/useFrappe';
+import { useEmployees, useCreateEmployee, useUpdateEmployeeStatus, useDeleteEmployee, useDepartments, useDesignations, useCompanies } from '@/hooks/useFrappe';
+import { usePermissions } from '@/hooks/usePermissions';
 import { catalogService } from '@/api/services';
 import { toast } from '@/components/ui/Toast';
 import type { Employee } from '@/types/frappe';
@@ -22,6 +23,11 @@ export default function Employees() {
   const [deptFilter, setDeptFilter] = useState<string>('');
   const [showNewModal, setShowNewModal] = useState(false);
   const [showBulkUpload, setShowBulkUpload] = useState(false);
+  const [actionMenuOpen, setActionMenuOpen] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const { isAdmin } = usePermissions();
+  const statusMutation = useUpdateEmployeeStatus();
+  const deleteMutation = useDeleteEmployee();
   const [newEmployee, setNewEmployee] = useState({
     first_name: '',
     last_name: '',
@@ -92,6 +98,71 @@ export default function Employees() {
     },
     { key: 'date_of_joining', header: 'Fecha Ingreso' },
     { key: 'employment_type', header: 'Tipo Contrato' },
+    ...(isAdmin
+      ? [
+          {
+            key: 'actions' as keyof Employee,
+            header: 'Acciones',
+            render: (emp: Employee) => (
+              <div className="relative" onClick={(e) => e.stopPropagation()}>
+                <button
+                  onClick={() => setActionMenuOpen(actionMenuOpen === emp.name ? null : emp.name)}
+                  className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </button>
+                {actionMenuOpen === emp.name && (
+                  <div className="absolute right-0 z-50 mt-1 w-44 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+                    {emp.status !== 'Active' && (
+                      <button
+                        onClick={async () => {
+                          setActionMenuOpen(null);
+                          await statusMutation.mutateAsync({ name: emp.name, status: 'Active' });
+                          toast.success('Activado', `${emp.employee_name} está activo`);
+                        }}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-sm text-green-700 hover:bg-green-50"
+                      >
+                        <Power className="h-4 w-4" /> Activar
+                      </button>
+                    )}
+                    {emp.status !== 'Inactive' && (
+                      <button
+                        onClick={async () => {
+                          setActionMenuOpen(null);
+                          await statusMutation.mutateAsync({ name: emp.name, status: 'Inactive' });
+                          toast.success('Desactivado', `${emp.employee_name} está inactivo`);
+                        }}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-sm text-yellow-700 hover:bg-yellow-50"
+                      >
+                        <PowerOff className="h-4 w-4" /> Desactivar
+                      </button>
+                    )}
+                    {emp.status !== 'Suspended' && (
+                      <button
+                        onClick={async () => {
+                          setActionMenuOpen(null);
+                          await statusMutation.mutateAsync({ name: emp.name, status: 'Suspended' });
+                          toast.success('Suspendido', `${emp.employee_name} está suspendido`);
+                        }}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-sm text-orange-700 hover:bg-orange-50"
+                      >
+                        <Ban className="h-4 w-4" /> Suspender
+                      </button>
+                    )}
+                    <div className="my-1 border-t border-gray-100" />
+                    <button
+                      onClick={() => { setActionMenuOpen(null); setDeleteTarget(emp.name); }}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-700 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-4 w-4" /> Eliminar
+                    </button>
+                  </div>
+                )}
+              </div>
+            ),
+          },
+        ]
+      : []),
   ];
 
   const handleCreate = async () => {
@@ -282,9 +353,9 @@ export default function Employees() {
               onChange={(e) => setNewEmployee({ ...newEmployee, gender: e.target.value })}
             >
               <option value="">Seleccionar</option>
-              <option value="Male">Masculino</option>
-              <option value="Female">Femenino</option>
-              <option value="Other">Otro</option>
+              <option value="Masculino">Masculino</option>
+              <option value="Femenino">Femenino</option>
+              <option value="Otro">Otro</option>
             </select>
           </div>
           <div>
@@ -345,6 +416,36 @@ export default function Employees() {
         onClose={() => setShowBulkUpload(false)}
         onComplete={() => queryClient.invalidateQueries({ queryKey: ['employees'] })}
       />
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="Eliminar empleado"
+        footer={
+          <>
+            <button onClick={() => setDeleteTarget(null)} className="btn-secondary">Cancelar</button>
+            <button
+              onClick={async () => {
+                if (!deleteTarget) return;
+                try {
+                  await deleteMutation.mutateAsync(deleteTarget);
+                  toast.success('Eliminado', 'Empleado eliminado correctamente');
+                  setDeleteTarget(null);
+                } catch { /* handled by hook */ }
+              }}
+              disabled={deleteMutation.isPending}
+              className="btn-primary bg-red-600 hover:bg-red-700"
+            >
+              {deleteMutation.isPending ? 'Eliminando...' : 'Eliminar'}
+            </button>
+          </>
+        }
+      >
+        <p className="text-sm text-gray-600">
+          ¿Estás seguro de que deseas eliminar este empleado? Esta acción no se puede deshacer.
+        </p>
+      </Modal>
     </div>
   );
 }

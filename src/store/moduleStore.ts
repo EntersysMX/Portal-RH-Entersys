@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { ModuleManifest, CustomRole, UserRoleAssignment } from '@/modules/types';
+import type { ModuleManifest, CustomRole, UserRoleAssignment, PlatformBranding } from '@/modules/types';
 import { ALL_MODULES, setManifestGetter } from '@/modules/registry';
 import { platformConfigService } from '@/api/services';
 
@@ -11,8 +11,13 @@ function allPermissionIds(): string[] {
 }
 
 const DEFAULT_MANIFEST: ModuleManifest = Object.fromEntries(
-  ALL_MODULES.map((m) => [m.id, { enabled: true }])
+  ALL_MODULES.map((m, i) => [m.id, { enabled: true, order: i }])
 );
+
+const DEFAULT_BRANDING: PlatformBranding = {
+  companyLogoUrl: null,
+  companyName: null,
+};
 
 const DEFAULT_ROLES: CustomRole[] = [
   {
@@ -70,6 +75,35 @@ function isCurrentUserAdmin(): boolean {
   }
 }
 
+/** Migra un manifest viejo (sin order) agregando order a cada entry */
+function migrateManifest(raw: Record<string, { enabled: boolean; order?: number }>): ModuleManifest {
+  let needsMigration = false;
+  const migrated: ModuleManifest = {};
+  const allIds = ALL_MODULES.map((m) => m.id);
+
+  for (const id of allIds) {
+    const entry = raw[id];
+    if (entry) {
+      if (entry.order === undefined || entry.order === null) {
+        needsMigration = true;
+        migrated[id] = { enabled: entry.enabled, order: allIds.indexOf(id) };
+      } else {
+        migrated[id] = { enabled: entry.enabled, order: entry.order };
+      }
+    } else {
+      needsMigration = true;
+      migrated[id] = { enabled: true, order: allIds.indexOf(id) };
+    }
+  }
+
+  // Persist migration if needed (fire-and-forget, admin only)
+  if (needsMigration && isCurrentUserAdmin()) {
+    platformConfigService.saveManifest(migrated).catch(() => {});
+  }
+
+  return migrated;
+}
+
 // ============================================
 // STORE
 // ============================================
@@ -77,6 +111,7 @@ interface ModuleStoreState {
   isInitialized: boolean;
   isLoading: boolean;
   manifest: ModuleManifest;
+  branding: PlatformBranding;
   roles: CustomRole[];
   assignments: UserRoleAssignment[];
 
@@ -84,12 +119,10 @@ interface ModuleStoreState {
   init: () => Promise<void>;
 
   // === ACCIONES DE ESCRITURA (solo admin) ===
-  // Estas funciones persisten en BD via platformConfigService.
-  // Frappe rechazará set_default si no es System Manager,
-  // y además el frontend valida isCurrentUserAdmin() como segunda barrera.
-
   toggleModule: (moduleId: string) => Promise<void>;
   setManifest: (manifest: ModuleManifest) => Promise<void>;
+  updateModuleOrder: (orderedIds: string[]) => Promise<void>;
+  setBranding: (branding: PlatformBranding) => Promise<void>;
 
   addRole: (role: Omit<CustomRole, 'id' | 'isSystem'>) => Promise<void>;
   updateRole: (id: string, data: Partial<Pick<CustomRole, 'name' | 'description' | 'permissions'>>) => Promise<void>;
@@ -109,6 +142,7 @@ export const useModuleStore = create<ModuleStoreState>((set, get) => ({
   isInitialized: false,
   isLoading: false,
   manifest: DEFAULT_MANIFEST,
+  branding: DEFAULT_BRANDING,
   roles: DEFAULT_ROLES.map((r) => ({ ...r })),
   assignments: [],
 
@@ -117,13 +151,16 @@ export const useModuleStore = create<ModuleStoreState>((set, get) => ({
     if (get().isInitialized || get().isLoading) return;
     set({ isLoading: true });
     try {
-      const [manifest, roles, assignments] = await Promise.all([
+      const [rawManifest, branding, roles, assignments] = await Promise.all([
         platformConfigService.loadManifest(DEFAULT_MANIFEST),
+        platformConfigService.loadBranding(DEFAULT_BRANDING),
         platformConfigService.loadRoles(DEFAULT_ROLES),
         platformConfigService.loadAssignments([]),
       ]);
+      const manifest = migrateManifest(rawManifest);
       set({
-        manifest: { ...DEFAULT_MANIFEST, ...manifest },
+        manifest,
+        branding: branding ?? DEFAULT_BRANDING,
         roles: roles.length > 0 ? roles : DEFAULT_ROLES.map((r) => ({ ...r })),
         assignments,
         isInitialized: true,
@@ -139,9 +176,13 @@ export const useModuleStore = create<ModuleStoreState>((set, get) => ({
   toggleModule: async (moduleId: string) => {
     if (!isCurrentUserAdmin()) return;
     const current = get().manifest;
+    const existing = current[moduleId];
     const updated = {
       ...current,
-      [moduleId]: { enabled: !current[moduleId]?.enabled },
+      [moduleId]: {
+        enabled: !existing?.enabled,
+        order: existing?.order ?? ALL_MODULES.findIndex((m) => m.id === moduleId),
+      },
     };
     set({ manifest: updated });
     await platformConfigService.saveManifest(updated).catch(() => {});
@@ -151,6 +192,25 @@ export const useModuleStore = create<ModuleStoreState>((set, get) => ({
     if (!isCurrentUserAdmin()) return;
     set({ manifest });
     await platformConfigService.saveManifest(manifest).catch(() => {});
+  },
+
+  updateModuleOrder: async (orderedIds: string[]) => {
+    if (!isCurrentUserAdmin()) return;
+    const current = get().manifest;
+    const updated = { ...current };
+    orderedIds.forEach((id, index) => {
+      if (updated[id]) {
+        updated[id] = { ...updated[id], order: index };
+      }
+    });
+    set({ manifest: updated });
+    await platformConfigService.saveManifest(updated).catch(() => {});
+  },
+
+  setBranding: async (branding: PlatformBranding) => {
+    if (!isCurrentUserAdmin()) return;
+    set({ branding });
+    await platformConfigService.saveBranding(branding).catch(() => {});
   },
 
   // ========== ROLE ACTIONS (solo admin) ==========

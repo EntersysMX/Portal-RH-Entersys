@@ -222,18 +222,20 @@ export function setManifestGetter(fn: () => ModuleManifest): void {
 
 function getManifest(): ModuleManifest {
   if (_manifestGetter) return _manifestGetter();
-  // Fallback: todos habilitados
-  return Object.fromEntries(ALL_MODULES.map((m) => [m.id, { enabled: true }]));
+  // Fallback: todos habilitados con orden por defecto
+  return Object.fromEntries(ALL_MODULES.map((m, i) => [m.id, { enabled: true, order: i }]));
 }
 
 export function isModuleEnabled(moduleId: string): boolean {
   return getManifest()[moduleId]?.enabled ?? false;
 }
 
-/** Returns only modules that are enabled in the manifest */
+/** Returns only modules that are enabled in the manifest, sorted by order */
 export function getEnabledModules(): ModuleDefinition[] {
   const manifest = getManifest();
-  return ALL_MODULES.filter((m) => manifest[m.id]?.enabled);
+  return ALL_MODULES
+    .filter((m) => manifest[m.id]?.enabled)
+    .sort((a, b) => (manifest[a.id]?.order ?? 999) - (manifest[b.id]?.order ?? 999));
 }
 
 /** Check if a section belongs to an enabled module */

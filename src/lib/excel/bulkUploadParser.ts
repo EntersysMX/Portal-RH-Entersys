@@ -4,6 +4,7 @@
 // ============================================
 
 import ExcelJS from 'exceljs';
+import { isExecutiveDesignation } from '@/lib/validation/rules';
 
 export interface ParsedEmployee {
   rowNumber: number;
@@ -69,10 +70,22 @@ const REQUIRED_FIELDS: (keyof ParsedEmployee)[] = [
   'date_of_joining', 'company', 'department', 'designation', 'employment_type',
 ];
 
-const VALID_GENDERS = ['Male', 'Female', 'Other'];
-const VALID_EMPLOYMENT = ['Full-time', 'Part-time', 'Contract', 'Intern', 'Commission', 'Freelance', 'Piecework'];
-const VALID_MARITAL = ['Single', 'Married', 'Divorced', 'Widowed', ''];
+// Acepta español (plantilla) y English (legado/Frappe)
+const VALID_GENDERS = ['Masculino', 'Femenino', 'Otro', 'Male', 'Female', 'Other'];
+const VALID_EMPLOYMENT = [
+  'Tiempo Completo', 'Medio Tiempo', 'Contrato', 'Becario', 'Comisión', 'Freelance', 'Por Obra',
+  'Full-time', 'Part-time', 'Contract', 'Intern', 'Commission', 'Piecework',
+];
+const VALID_MARITAL = ['Soltero(a)', 'Casado(a)', 'Divorciado(a)', 'Viudo(a)', 'Single', 'Married', 'Divorced', 'Widowed', ''];
 const VALID_BLOOD = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', ''];
+
+/** Mapeo estado civil español → inglés (Frappe usa Select en inglés) */
+const MARITAL_TO_FRAPPE: Record<string, string> = {
+  'Soltero(a)': 'Single',
+  'Casado(a)': 'Married',
+  'Divorciado(a)': 'Divorced',
+  'Viudo(a)': 'Widowed',
+};
 
 function cellToString(cell: ExcelJS.Cell): string {
   const val = cell.value;
@@ -107,7 +120,7 @@ function isEmailValid(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-function validateRow(emp: ParsedEmployee): { errors: string[]; warnings: string[] } {
+function validateRow(emp: ParsedEmployee, validEmployeeIds?: Set<string>): { errors: string[]; warnings: string[] } {
   const errors: string[] = [];
   const warnings: string[] = [];
 
@@ -186,10 +199,20 @@ function validateRow(emp: ParsedEmployee): { errors: string[]; warnings: string[
     errors.push('Salario/CTC no puede ser negativo');
   }
 
+  // Validar reports_to
+  if (!emp.reports_to) {
+    // Empty reports_to: no warning for executives, warning for others
+    if (emp.designation && !isExecutiveDesignation(emp.designation)) {
+      warnings.push('reports_to está vacío (solo se omite para puestos ejecutivos)');
+    }
+  } else if (validEmployeeIds && !validEmployeeIds.has(emp.reports_to)) {
+    errors.push(`reports_to "${emp.reports_to}" no corresponde a un empleado existente`);
+  }
+
   return { errors, warnings };
 }
 
-export async function parseUploadedExcel(file: File): Promise<ParseResult> {
+export async function parseUploadedExcel(file: File, validEmployeeIds?: Set<string>): Promise<ParseResult> {
   const buffer = await file.arrayBuffer();
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.load(buffer);
@@ -249,7 +272,7 @@ export async function parseUploadedExcel(file: File): Promise<ParseResult> {
       reports_to: cellToString(row.getCell(31)),
     };
 
-    const { errors, warnings } = validateRow(emp);
+    const { errors, warnings } = validateRow(emp, validEmployeeIds);
 
     rows.push({
       employee: emp,
@@ -292,7 +315,10 @@ export function toEmployeeCreateData(emp: ParsedEmployee): Record<string, unknow
   if (emp.rfc) data.rfc = emp.rfc;
   if (emp.curp) data.curp = emp.curp;
   if (emp.nss) data.nss = emp.nss;
-  if (emp.marital_status) data.marital_status = emp.marital_status;
+  if (emp.marital_status) {
+    // Mapear español → inglés para Frappe
+    data.marital_status = MARITAL_TO_FRAPPE[emp.marital_status] || emp.marital_status;
+  }
   if (emp.blood_group) data.blood_group = emp.blood_group;
   if (emp.cell_phone) data.cell_phone = emp.cell_phone;
   if (emp.personal_email) data.personal_email = emp.personal_email;

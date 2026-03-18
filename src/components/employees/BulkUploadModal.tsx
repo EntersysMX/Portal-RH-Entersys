@@ -6,7 +6,9 @@ import {
 import Modal from '@/components/ui/Modal';
 import { parseUploadedExcel, toEmployeeCreateData } from '@/lib/excel/bulkUploadParser';
 import { downloadPlantillaCargaMasiva } from '@/lib/excel/excelGenerator';
-import { employeeService, catalogService } from '@/api/services';
+import type { BulkTemplateCatalogs } from '@/lib/excel/excelGenerator';
+import { employeeService, catalogService, departmentService, designationService, companyService, branchService, employmentTypeService } from '@/api/services';
+import { ensureSpanishCatalogs } from '@/lib/catalogs/spanishCatalogs';
 import { parseFrappeError } from '@/lib/frappeErrors';
 import type { ParseResult, ParsedRow } from '@/lib/excel/bulkUploadParser';
 
@@ -26,6 +28,7 @@ export default function BulkUploadModal({ isOpen, onClose, onComplete }: Props) 
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0, errors: [] as string[] });
   const [importResults, setImportResults] = useState({ created: 0, failed: 0, errors: [] as string[] });
+  const [isDownloading, setIsDownloading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const reset = useCallback(() => {
@@ -33,11 +36,48 @@ export default function BulkUploadModal({ isOpen, onClose, onComplete }: Props) 
     setParseResult(null);
     setParseError('');
     setIsParsing(false);
+    setIsDownloading(false);
     setExpandedRows(new Set());
     setImportProgress({ current: 0, total: 0, errors: [] });
     setImportResults({ created: 0, failed: 0, errors: [] });
     if (fileInputRef.current) fileInputRef.current.value = '';
   }, []);
+
+  /** Load catalogs from DB and generate template with dropdowns */
+  const handleDownloadTemplate = async () => {
+    setIsDownloading(true);
+    try {
+      // Ensure Spanish catalog entries exist in Frappe DB
+      await ensureSpanishCatalogs();
+
+      // Load all catalogs in parallel
+      const [companies, departments, designations, branches, empTypes, employees] = await Promise.all([
+        companyService.list().catch(() => []),
+        departmentService.list().catch(() => []),
+        designationService.list().catch(() => []),
+        branchService.list().catch(() => []),
+        employmentTypeService.list().catch(() => []),
+        employeeService.list({ limit: 5000 }).catch(() => []),
+      ]);
+
+      const catalogs: BulkTemplateCatalogs = {
+        companies: companies.map((c) => c.name),
+        departments: departments.map((d) => d.name),
+        designations: designations.map((d) => d.name),
+        branches: branches.map((b) => b.name),
+        employmentTypes: empTypes.map((e) => e.name),
+        employees: employees.map((e) => ({ id: e.name, name: e.employee_name })),
+      };
+
+      await downloadPlantillaCargaMasiva(catalogs);
+    } catch (err) {
+      console.error('Error downloading template:', err);
+      // Fallback: generate without dynamic catalogs
+      await downloadPlantillaCargaMasiva();
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   const handleClose = () => {
     if (step === 'importing') return; // No cerrar durante importación
@@ -55,7 +95,16 @@ export default function BulkUploadModal({ isOpen, onClose, onComplete }: Props) 
     setParseError('');
 
     try {
-      const result = await parseUploadedExcel(file);
+      // Load existing employees to validate reports_to
+      let validEmployeeIds: Set<string> | undefined;
+      try {
+        const existing = await employeeService.list({ limit: 5000 });
+        validEmployeeIds = new Set(existing.map((e) => e.name));
+      } catch {
+        // If loading fails, skip reports_to ID validation
+      }
+
+      const result = await parseUploadedExcel(file, validEmployeeIds);
       if (result.totalRows === 0) {
         setParseError('El archivo no contiene datos de empleados. Verifique que los datos estén en la hoja "Empleados" a partir de la fila 6.');
         setIsParsing(false);
@@ -196,9 +245,9 @@ export default function BulkUploadModal({ isOpen, onClose, onComplete }: Props) 
         step === 'upload' ? (
           <>
             <button onClick={handleClose} className="btn-secondary">Cancelar</button>
-            <button onClick={() => downloadPlantillaCargaMasiva()} className="btn-secondary">
-              <Download className="h-4 w-4" />
-              Descargar Plantilla
+            <button onClick={handleDownloadTemplate} disabled={isDownloading} className="btn-secondary">
+              {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              {isDownloading ? 'Cargando catálogos...' : 'Descargar Plantilla'}
             </button>
           </>
         ) : step === 'preview' ? (

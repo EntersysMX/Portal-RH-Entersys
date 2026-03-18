@@ -76,7 +76,7 @@ export function mapDirectoryToEmployee(
     company_email: user.primaryEmail,
     company: defaultCompany,
     status: 'Active',
-    employment_type: 'Full-time',
+    employment_type: 'Tiempo Completo',
   };
 
   // Imagen

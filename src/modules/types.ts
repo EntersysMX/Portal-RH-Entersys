@@ -36,7 +36,19 @@ export interface ModuleNavItem {
 
 /** Manifiesto: qué módulos están habilitados en este despliegue */
 export interface ModuleManifest {
-  [moduleId: string]: { enabled: boolean };
+  [moduleId: string]: { enabled: boolean; order: number };
+}
+
+/** Branding de la empresa (logo + nombre) */
+export interface PlatformBranding {
+  companyLogoUrl: string | null;
+  companyName: string | null;
+}
+
+/** Preferencias de sidebar por usuario (localStorage) */
+export interface UserSidebarPreferences {
+  moduleOrder: string[];
+  lastAdminOrderVersion: number;
 }
 
 /** Rol personalizado configurable desde el panel de admin */

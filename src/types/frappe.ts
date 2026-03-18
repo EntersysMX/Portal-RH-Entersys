@@ -350,6 +350,10 @@ export interface Branch {
   branch: string;
 }
 
+export interface EmploymentType {
+  name: string;
+}
+
 export interface Notice {
   name: string;
   title: string;

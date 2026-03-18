@@ -242,13 +242,17 @@ export function validateMergedEmployee(emp: MergedEmployee): void {
     }
   }
 
-  // Validacion de genero
-  if (d.gender && !['Male', 'Female', 'Other'].includes(d.gender)) {
-    warnings.push(`Genero "${d.gender}" no estandar (se espera Male/Female/Other)`);
+  // Validacion de genero (acepta español y inglés)
+  const validGenders = ['Masculino', 'Femenino', 'Otro', 'Male', 'Female', 'Other'];
+  if (d.gender && !validGenders.includes(d.gender)) {
+    warnings.push(`Genero "${d.gender}" no estandar (se espera Masculino/Femenino/Otro)`);
   }
 
-  // Validacion de tipo de empleo
-  const validTypes = ['Full-time', 'Part-time', 'Contract', 'Intern', 'Freelance', 'Probation'];
+  // Validacion de tipo de empleo (acepta español y inglés)
+  const validTypes = [
+    'Tiempo Completo', 'Medio Tiempo', 'Contrato', 'Becario', 'Comisión', 'Freelance', 'Por Obra',
+    'Full-time', 'Part-time', 'Contract', 'Intern', 'Probation',
+  ];
   if (d.employment_type && !validTypes.includes(d.employment_type)) {
     warnings.push(`Tipo de empleo "${d.employment_type}" no estandar`);
   }

@@ -5,6 +5,8 @@ import {
   designationService,
   companyService,
   branchService,
+  employmentTypeService,
+  genderService,
   catalogService,
   leaveService,
   attendanceService,
@@ -82,6 +84,19 @@ export function useDeleteEmployee() {
   });
 }
 
+export function useUpdateEmployeeStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ name, status }: { name: string; status: 'Active' | 'Inactive' | 'Suspended' | 'Left' }) =>
+      employeeService.updateStatus(name, status),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['employees'] });
+      qc.invalidateQueries({ queryKey: ['employee'] });
+    },
+    onError: (error) => toast.fromError(error),
+  });
+}
+
 // ============================================
 // DEPARTMENTS
 // ============================================
@@ -123,6 +138,171 @@ export function useBranches() {
     queryKey: ['branches'],
     queryFn: branchService.list,
     staleTime: 300_000,
+  });
+}
+
+// ============================================
+// GENDERS
+// ============================================
+export function useGenders() {
+  return useQuery({
+    queryKey: ['genders'],
+    queryFn: genderService.list,
+    staleTime: 300_000,
+  });
+}
+
+// ============================================
+// EMPLOYMENT TYPES
+// ============================================
+export function useEmploymentTypes() {
+  return useQuery({
+    queryKey: ['employment-types'],
+    queryFn: employmentTypeService.list,
+    staleTime: 300_000,
+  });
+}
+
+// ============================================
+// CATALOG MUTATIONS
+// ============================================
+export function useCreateDepartment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: departmentService.create,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['departments'] }),
+    onError: (error) => toast.fromError(error),
+  });
+}
+
+export function useUpdateDepartment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ name, data }: { name: string; data: Record<string, unknown> }) =>
+      departmentService.update(name, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['departments'] }),
+    onError: (error) => toast.fromError(error),
+  });
+}
+
+export function useDeleteDepartment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: departmentService.delete,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['departments'] }),
+    onError: (error) => toast.fromError(error),
+  });
+}
+
+export function useCreateDesignation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: designationService.create,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['designations'] }),
+    onError: (error) => toast.fromError(error),
+  });
+}
+
+export function useUpdateDesignation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ name, data }: { name: string; data: Record<string, unknown> }) =>
+      designationService.update(name, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['designations'] }),
+    onError: (error) => toast.fromError(error),
+  });
+}
+
+export function useDeleteDesignation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: designationService.delete,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['designations'] }),
+    onError: (error) => toast.fromError(error),
+  });
+}
+
+export function useCreateCompany() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: companyService.create,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['companies'] }),
+    onError: (error) => toast.fromError(error),
+  });
+}
+
+export function useUpdateCompany() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ name, data }: { name: string; data: Record<string, unknown> }) =>
+      companyService.update(name, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['companies'] }),
+    onError: (error) => toast.fromError(error),
+  });
+}
+
+export function useDeleteCompany() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: companyService.delete,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['companies'] }),
+    onError: (error) => toast.fromError(error),
+  });
+}
+
+export function useCreateBranch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: branchService.create,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['branches'] }),
+    onError: (error) => toast.fromError(error),
+  });
+}
+
+export function useUpdateBranch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ name, data }: { name: string; data: Record<string, unknown> }) =>
+      branchService.update(name, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['branches'] }),
+    onError: (error) => toast.fromError(error),
+  });
+}
+
+export function useDeleteBranch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: branchService.delete,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['branches'] }),
+    onError: (error) => toast.fromError(error),
+  });
+}
+
+export function useCreateEmploymentType() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: employmentTypeService.create,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['employment-types'] }),
+    onError: (error) => toast.fromError(error),
+  });
+}
+
+export function useUpdateEmploymentType() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ name, data }: { name: string; data: Record<string, unknown> }) =>
+      employmentTypeService.update(name, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['employment-types'] }),
+    onError: (error) => toast.fromError(error),
+  });
+}
+
+export function useDeleteEmploymentType() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: employmentTypeService.delete,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['employment-types'] }),
+    onError: (error) => toast.fromError(error),
   });
 }
 

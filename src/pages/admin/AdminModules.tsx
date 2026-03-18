@@ -1,9 +1,25 @@
-import { useState } from 'react';
-import { Package, Check, X, RotateCcw } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Package, RotateCcw } from 'lucide-react';
 import { clsx } from 'clsx';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
 import { ALL_MODULES } from '@/modules/registry';
 import { useModuleStore } from '@/store/moduleStore';
 import { toast } from '@/components/ui/Toast';
+import ModuleStoreCard from '@/components/admin/ModuleStoreCard';
+import SidebarPreview from '@/components/admin/SidebarPreview';
 
 const CATEGORY_LABELS: Record<string, string> = {
   core: 'Core',
@@ -14,41 +30,78 @@ const CATEGORY_LABELS: Record<string, string> = {
   portal: 'Portal Empleado',
 };
 
-const CATEGORY_COLORS: Record<string, string> = {
-  core: 'bg-gray-100 text-gray-700',
-  hr: 'bg-blue-100 text-blue-700',
-  payroll: 'bg-green-100 text-green-700',
-  talent: 'bg-purple-100 text-purple-700',
-  admin: 'bg-orange-100 text-orange-700',
-  portal: 'bg-cyan-100 text-cyan-700',
-};
-
 export default function AdminModules() {
-  const { manifest, toggleModule, setManifest } = useModuleStore();
+  const { manifest, toggleModule, setManifest, updateModuleOrder } = useModuleStore();
   const [filter, setFilter] = useState<string>('all');
 
-  const categories = ['all', ...new Set(ALL_MODULES.map((m) => m.category))];
-  const filtered = filter === 'all'
-    ? ALL_MODULES
-    : ALL_MODULES.filter((m) => m.category === filter);
+  const categories = useMemo(
+    () => ['all', ...Array.from(new Set(ALL_MODULES.map((m) => m.category)))],
+    []
+  );
+
+  // Modules sorted by current manifest order
+  const sortedModules = useMemo(() => {
+    const mods = [...ALL_MODULES].sort(
+      (a, b) => (manifest[a.id]?.order ?? 999) - (manifest[b.id]?.order ?? 999)
+    );
+    if (filter === 'all') return mods;
+    return mods.filter((m) => m.category === filter);
+  }, [manifest, filter]);
+
+  const moduleIds = useMemo(() => sortedModules.map((m) => m.id), [sortedModules]);
 
   const enabledCount = ALL_MODULES.filter((m) => manifest[m.id]?.enabled).length;
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    // Build new full order (we operate on ALL modules, not just filtered)
+    const allSorted = [...ALL_MODULES].sort(
+      (a, b) => (manifest[a.id]?.order ?? 999) - (manifest[b.id]?.order ?? 999)
+    );
+    const allIds = allSorted.map((m) => m.id);
+    const oldIndex = allIds.indexOf(String(active.id));
+    const newIndex = allIds.indexOf(String(over.id));
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = [...allIds];
+    const [moved] = reordered.splice(oldIndex, 1);
+    reordered.splice(newIndex, 0, moved);
+
+    await updateModuleOrder(reordered);
+  };
+
   const handleReset = async () => {
-    const all: Record<string, { enabled: boolean }> = {};
-    ALL_MODULES.forEach((m) => { all[m.id] = { enabled: true }; });
+    const all: Record<string, { enabled: boolean; order: number }> = {};
+    ALL_MODULES.forEach((m, i) => { all[m.id] = { enabled: true, order: i }; });
     await setManifest(all);
-    toast.success('Módulos restaurados', 'Todos los módulos han sido habilitados');
+    toast.success('Módulos restaurados', 'Todos los módulos han sido habilitados y ordenados por defecto');
+  };
+
+  const handleToggle = async (moduleId: string) => {
+    const wasEnabled = manifest[moduleId]?.enabled ?? false;
+    await toggleModule(moduleId);
+    const mod = ALL_MODULES.find((m) => m.id === moduleId);
+    toast.success(
+      wasEnabled ? 'Módulo deshabilitado' : 'Módulo habilitado',
+      `"${mod?.label}" ${wasEnabled ? 'ya no estará' : 'estará'} disponible en el sistema`
+    );
   };
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto max-w-6xl space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Módulos del Sistema</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Tienda de Módulos</h1>
           <p className="mt-1 text-gray-500">
-            Habilita o deshabilita módulos para esta instancia. Los módulos deshabilitados no aparecen en el menú ni son accesibles.
+            Arrastra para reordenar el sidebar. Habilita o deshabilita módulos para todos los usuarios.
           </p>
         </div>
         <button onClick={handleReset} className="btn-secondary">
@@ -91,62 +144,34 @@ export default function AdminModules() {
         ))}
       </div>
 
-      {/* Module grid */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {filtered.map((mod) => {
-          const enabled = manifest[mod.id]?.enabled ?? false;
-          const Icon = mod.icon;
-          return (
-            <div
-              key={mod.id}
-              className={clsx(
-                'card relative overflow-hidden p-5 transition-all',
-                enabled ? 'border-l-4 border-l-green-500' : 'opacity-60'
-              )}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex items-start gap-3">
-                  <div className={clsx(
-                    'rounded-lg p-2',
-                    enabled ? 'bg-primary-50 text-primary-600' : 'bg-gray-100 text-gray-400'
-                  )}>
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900">{mod.label}</h3>
-                    <p className="mt-0.5 text-sm text-gray-500">{mod.description}</p>
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      <span className={clsx('rounded-full px-2 py-0.5 text-[10px] font-medium', CATEGORY_COLORS[mod.category])}>
-                        {CATEGORY_LABELS[mod.category]}
-                      </span>
-                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">
-                        {mod.permissions.length} permisos
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <button
-                  onClick={async () => {
-                    await toggleModule(mod.id);
-                    toast.success(
-                      enabled ? 'Módulo deshabilitado' : 'Módulo habilitado',
-                      `"${mod.label}" ${enabled ? 'ya no estará' : 'estará'} disponible en el sistema`
-                    );
-                  }}
-                  className={clsx(
-                    'flex h-8 w-8 items-center justify-center rounded-full transition-colors',
-                    enabled
-                      ? 'bg-green-100 text-green-600 hover:bg-green-200'
-                      : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-                  )}
-                  title={enabled ? 'Deshabilitar' : 'Habilitar'}
-                >
-                  {enabled ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-          );
-        })}
+      {/* 2-column layout */}
+      <div className="flex gap-6">
+        {/* Left: DnD module list */}
+        <div className="flex-1 space-y-2">
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext items={moduleIds} strategy={verticalListSortingStrategy}>
+              {sortedModules.map((mod) => (
+                <ModuleStoreCard
+                  key={mod.id}
+                  module={mod}
+                  enabled={manifest[mod.id]?.enabled ?? false}
+                  onToggle={() => handleToggle(mod.id)}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
+        </div>
+
+        {/* Right: Sidebar preview (sticky) */}
+        <div className="hidden w-56 flex-shrink-0 lg:block">
+          <div className="sticky top-6">
+            <SidebarPreview />
+          </div>
+        </div>
       </div>
 
       {/* Info box */}
@@ -156,9 +181,9 @@ export default function AdminModules() {
           <div className="text-sm text-blue-700">
             <p className="font-medium">Nota sobre módulos</p>
             <p className="mt-1">
-              Los cambios en módulos se aplican inmediatamente. Los módulos deshabilitados dejan de ser visibles
-              en la navegación y sus rutas quedan protegidas. Los datos asociados se conservan y estarán
-              disponibles al reactivar el módulo.
+              Los cambios se aplican inmediatamente para todos los usuarios.
+              Arrastra los módulos para cambiar el orden en el sidebar.
+              Los módulos deshabilitados dejan de ser visibles en la navegación pero sus datos se conservan.
             </p>
           </div>
         </div>

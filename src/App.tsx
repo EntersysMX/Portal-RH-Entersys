@@ -25,6 +25,8 @@ import GoogleSync from '@/pages/GoogleSync';
 import AdminModules from '@/pages/admin/AdminModules';
 import AdminRoles from '@/pages/admin/AdminRoles';
 import AdminUsers from '@/pages/admin/AdminUsers';
+import AdminCatalogs from '@/pages/admin/AdminCatalogs';
+import AdminPlatform from '@/pages/admin/AdminPlatform';
 // Portal de empleado
 import EmployeeDashboard from '@/pages/employee/EmployeeDashboard';
 import MyProfile from '@/pages/employee/MyProfile';
@@ -267,6 +269,22 @@ export default function App() {
               element={
                 <ProtectedRoute requiredSection="admin-users">
                   <AdminUsers />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="admin/catalogs"
+              element={
+                <ProtectedRoute requiredSection="admin-catalogs">
+                  <AdminCatalogs />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="admin/platform"
+              element={
+                <ProtectedRoute requiredSection="admin-platform">
+                  <AdminPlatform />
                 </ProtectedRoute>
               }
             />

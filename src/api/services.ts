@@ -14,6 +14,7 @@ import type {
   Designation,
   Company,
   Branch,
+  EmploymentType,
   LeaveApplication,
   Attendance,
   JobOpening,
@@ -58,6 +59,9 @@ export const employeeService = {
   count: (filters?: Record<string, unknown>) =>
     frappeGetCount({ doctype: 'Employee', filters }),
 
+  updateStatus: (name: string, status: Employee['status']) =>
+    frappeUpdateDoc<Employee>('Employee', name, { status }),
+
   getByDepartment: (department: string) =>
     frappeGetList<Employee>({
       doctype: 'Employee',
@@ -84,6 +88,8 @@ export const departmentService = {
 
   update: (name: string, data: Partial<Department>) =>
     frappeUpdateDoc<Department>('Department', name, data),
+
+  delete: (name: string) => frappeDeleteDoc('Department', name),
 };
 
 // ============================================
@@ -99,6 +105,11 @@ export const designationService = {
 
   create: (data: Partial<Designation>) =>
     frappeCreateDoc<Designation>('Designation', data),
+
+  update: (name: string, data: Partial<Designation>) =>
+    frappeUpdateDoc<Designation>('Designation', name, data),
+
+  delete: (name: string) => frappeDeleteDoc('Designation', name),
 };
 
 // ============================================
@@ -114,6 +125,11 @@ export const companyService = {
 
   create: (data: Partial<Company>) =>
     frappeCreateDoc<Company>('Company', data),
+
+  update: (name: string, data: Partial<Company>) =>
+    frappeUpdateDoc<Company>('Company', name, data),
+
+  delete: (name: string) => frappeDeleteDoc('Company', name),
 };
 
 // ============================================
@@ -129,6 +145,43 @@ export const branchService = {
 
   create: (data: Partial<Branch>) =>
     frappeCreateDoc<Branch>('Branch', data),
+
+  update: (name: string, data: Partial<Branch>) =>
+    frappeUpdateDoc<Branch>('Branch', name, data),
+
+  delete: (name: string) => frappeDeleteDoc('Branch', name),
+};
+
+// ============================================
+// EMPLOYMENT TYPE SERVICE
+// ============================================
+export const employmentTypeService = {
+  list: () =>
+    frappeGetList<EmploymentType>({
+      doctype: 'Employment Type',
+      fields: ['*'],
+      limit_page_length: 100,
+    }),
+
+  create: (data: Partial<EmploymentType>) =>
+    frappeCreateDoc<EmploymentType>('Employment Type', data),
+
+  update: (name: string, data: Partial<EmploymentType>) =>
+    frappeUpdateDoc<EmploymentType>('Employment Type', name, data),
+
+  delete: (name: string) => frappeDeleteDoc('Employment Type', name),
+};
+
+// ============================================
+// GENDER SERVICE
+// ============================================
+export const genderService = {
+  list: () =>
+    frappeGetList<{ name: string }>({
+      doctype: 'Gender',
+      fields: ['name'],
+      limit_page_length: 100,
+    }),
 };
 
 // ============================================
@@ -630,10 +683,10 @@ export const platformConfigService = {
   loadConfig,
   saveConfig,
 
-  loadManifest: (fallback: Record<string, { enabled: boolean }>) =>
-    loadConfig<Record<string, { enabled: boolean }>>('enterhr_manifest', fallback),
+  loadManifest: (fallback: Record<string, { enabled: boolean; order: number }>) =>
+    loadConfig<Record<string, { enabled: boolean; order: number }>>('enterhr_manifest', fallback),
 
-  saveManifest: (data: Record<string, { enabled: boolean }>) =>
+  saveManifest: (data: Record<string, { enabled: boolean; order: number }>) =>
     saveConfig('enterhr_manifest', data),
 
   loadRoles: (fallback: { id: string; name: string; description: string; isSystem: boolean; permissions: string[] }[]) =>
@@ -647,4 +700,10 @@ export const platformConfigService = {
 
   saveAssignments: (data: { userEmail: string; userName: string; customRoleIds: string[] }[]) =>
     saveConfig('enterhr_assignments', data),
+
+  loadBranding: (fallback: { companyLogoUrl: string | null; companyName: string | null }) =>
+    loadConfig<{ companyLogoUrl: string | null; companyName: string | null }>('enterhr_branding', fallback),
+
+  saveBranding: (data: { companyLogoUrl: string | null; companyName: string | null }) =>
+    saveConfig('enterhr_branding', data),
 };

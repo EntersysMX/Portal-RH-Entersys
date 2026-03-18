@@ -38,6 +38,8 @@ export type MenuSection =
   | 'admin-modules'
   | 'admin-roles'
   | 'admin-users'
+  | 'admin-catalogs'
+  | 'admin-platform'
   // Portal de empleado
   | 'portal'
   | 'my-profile'
@@ -57,7 +59,7 @@ const PROFILE_MENU_ACCESS: Record<UserProfile, MenuSection[]> = {
     'attendance', 'payroll', 'nomina-mx', 'expenses',
     'training', 'organization', 'settings', 'notices', 'google-sync',
     // Admin panel
-    'admin-modules', 'admin-roles', 'admin-users',
+    'admin-modules', 'admin-roles', 'admin-users', 'admin-catalogs', 'admin-platform',
     // Admin también puede ver el portal
     'portal', 'my-profile', 'my-payslips', 'my-attendance',
     'my-training', 'my-organization', 'my-notices',

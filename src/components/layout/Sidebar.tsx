@@ -5,14 +5,19 @@ import {
   ChevronLeft,
   ChevronRight,
   Shield,
+  Database,
+  BookOpen,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useState, useMemo } from 'react';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useModuleStore } from '@/store/moduleStore';
-import { getEnabledModules } from '@/modules/registry';
+import { useSidebarOrder } from '@/hooks/useSidebarOrder';
 import type { MenuSection } from '@/lib/permissions';
 import type { ModuleNavItem } from '@/modules/types';
+import SidebarCustomizer from '@/components/sidebar/SidebarCustomizer';
+import BrandedLogo from '@/components/ui/BrandedLogo';
 
 interface NavItem {
   name: string;
@@ -27,23 +32,28 @@ const adminPanelNavigation: NavItem[] = [
   { name: 'Módulos', href: '/admin/modules', icon: Shield, section: 'admin-modules' },
   { name: 'Roles', href: '/admin/roles', icon: Shield, section: 'admin-roles' },
   { name: 'Usuarios', href: '/admin/users', icon: Users, section: 'admin-users' },
+  { name: 'Catálogos', href: '/admin/catalogs', icon: Database, section: 'admin-catalogs' },
+  { name: 'Plataforma', href: '/admin/platform', icon: BookOpen, section: 'admin-platform' },
   { name: 'Configuración', href: '/settings', icon: Settings, section: 'settings' },
 ];
 
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
+  const [showCustomizer, setShowCustomizer] = useState(false);
   const { canAccess, isEmployeeOnly, profileLabel, profileBadgeColor } = usePermissions();
 
-  // Subscribe to manifest so Sidebar re-renders when modules are toggled
+  // Subscribe to manifest + branding so Sidebar re-renders when they change
   const manifest = useModuleStore((s) => s.manifest);
+  const branding = useModuleStore((s) => s.branding);
 
-  // Generate navigation from enabled modules
+  // Use sidebar order (admin order + user preferences)
+  const { orderedModules } = useSidebarOrder();
+
+  // Generate navigation from ordered modules
   const { mainNav, portalNav, adminNav } = useMemo(() => {
-    const enabledModules = getEnabledModules();
-
     // Admin/HR nav: all non-portal modules
     const mainItems: NavItem[] = [];
-    enabledModules
+    orderedModules
       .filter((m) => m.category !== 'portal')
       .forEach((mod) => {
         mod.navItems.forEach((item: ModuleNavItem) => {
@@ -59,7 +69,7 @@ export default function Sidebar() {
 
     // Portal nav: only portal module
     const portalItems: NavItem[] = [];
-    const portalModule = enabledModules.find((m) => m.category === 'portal');
+    const portalModule = orderedModules.find((m) => m.category === 'portal');
     if (portalModule) {
       portalModule.navItems.forEach((item: ModuleNavItem) => {
         portalItems.push({
@@ -77,7 +87,8 @@ export default function Sidebar() {
       portalNav: portalItems,
       adminNav: adminPanelNavigation,
     };
-  }, [manifest]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [manifest, orderedModules]);
 
   // Filter by user permissions
   const visibleMain = isEmployeeOnly ? [] : mainNav.filter((item) => canAccess(item.section));
@@ -91,23 +102,38 @@ export default function Sidebar() {
         collapsed ? 'w-[72px]' : 'w-64'
       )}
     >
-      {/* Logo */}
+      {/* Sidebar Customizer overlay */}
+      {showCustomizer && (
+        <SidebarCustomizer onClose={() => setShowCustomizer(false)} />
+      )}
+
+      {/* Logo — dynamic branding */}
       <div data-tour="sidebar-logo" className="flex h-16 items-center justify-between border-b border-gray-200 px-4">
         {!collapsed && (
           <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-600">
-              <Users className="h-5 w-5 text-white" />
-            </div>
+            {branding.companyLogoUrl ? (
+              <BrandedLogo src={branding.companyLogoUrl} size="md" />
+            ) : (
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-600">
+                <Users className="h-5 w-5 text-white" />
+              </div>
+            )}
             <div>
               <h1 className="text-lg font-bold text-gray-900">EnterHR</h1>
-              <p className="text-[10px] text-gray-400">Plataforma de Capital Humano</p>
+              <p className="text-[10px] text-gray-400">
+                {branding.companyName || 'Plataforma de Capital Humano'}
+              </p>
             </div>
           </div>
         )}
         {collapsed && (
-          <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-lg bg-primary-600">
-            <Users className="h-5 w-5 text-white" />
-          </div>
+          branding.companyLogoUrl ? (
+            <BrandedLogo src={branding.companyLogoUrl} size="md" className="mx-auto" />
+          ) : (
+            <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-lg bg-primary-600">
+              <Users className="h-5 w-5 text-white" />
+            </div>
+          )
         )}
       </div>
 
@@ -231,8 +257,19 @@ export default function Sidebar() {
         )}
       </nav>
 
-      {/* Collapse button */}
-      <div className="border-t border-gray-200 p-3">
+      {/* Bottom buttons */}
+      <div className="border-t border-gray-200 p-3 space-y-1">
+        {/* Customize sidebar button (only when expanded) */}
+        {!collapsed && (
+          <button
+            onClick={() => setShowCustomizer(true)}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            <span>Personalizar</span>
+          </button>
+        )}
+        {/* Collapse button */}
         <button
           onClick={() => setCollapsed(!collapsed)}
           className="flex w-full items-center justify-center rounded-lg py-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
