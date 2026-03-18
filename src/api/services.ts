@@ -643,6 +643,15 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   ]);
 }
 
+/**
+ * Nombre del Note que almacena la config en Frappe.
+ * Se usa el doctype Note (estándar en toda instalación de Frappe)
+ * como key-value store: title = clave, content = JSON.
+ */
+function noteTitle(key: string): string {
+  return `enterhr_${key}`;
+}
+
 async function loadConfig<T>(key: string, fallback: T): Promise<T> {
   // 1. Intentar caché local primero (respuesta instantánea)
   let cached: T | null = null;
@@ -651,15 +660,20 @@ async function loadConfig<T>(key: string, fallback: T): Promise<T> {
     if (raw) cached = JSON.parse(raw) as T;
   } catch { /* ignore corrupt cache */ }
 
-  // 2. Intentar backend (con timeout) para obtener la versión más reciente
+  // 2. Intentar backend — leer Note por título
   try {
-    const raw = await withTimeout(
-      frappeCall<string | null>('frappe.client.get_default', { key }),
+    const notes = await withTimeout(
+      frappeGetList<{ name: string; content: string }>({
+        doctype: 'Note',
+        fields: ['name', 'content'],
+        filters: { title: noteTitle(key) },
+        limit_page_length: 1,
+      }),
       CONFIG_TIMEOUT_MS,
     );
-    if (raw) {
-      const parsed = JSON.parse(raw) as T;
-      localStorage.setItem(CACHE_PREFIX + key, raw);
+    if (notes.length > 0 && notes[0].content) {
+      const parsed = JSON.parse(notes[0].content) as T;
+      localStorage.setItem(CACHE_PREFIX + key, notes[0].content);
       return parsed;
     }
   } catch {
@@ -667,14 +681,31 @@ async function loadConfig<T>(key: string, fallback: T): Promise<T> {
     if (cached !== null) return cached;
   }
 
-  // 3. Si el backend retornó null (no hay config guardada aún), usar caché o fallback
+  // 3. Si no existe el Note, usar caché o fallback
   return cached ?? fallback;
 }
 
 async function saveConfig<T>(key: string, data: T): Promise<void> {
   const json = JSON.stringify(data);
-  // 1. Guardar en backend PRIMERO (fuente de verdad — requiere System Manager)
-  await frappeCall('frappe.client.set_default', { key, value: json });
+  const title = noteTitle(key);
+
+  // 1. Guardar en backend PRIMERO (fuente de verdad)
+  // Buscar si ya existe un Note con este título
+  const existing = await frappeGetList<{ name: string }>({
+    doctype: 'Note',
+    fields: ['name'],
+    filters: { title },
+    limit_page_length: 1,
+  });
+
+  if (existing.length > 0) {
+    // Actualizar el Note existente
+    await frappeUpdateDoc('Note', existing[0].name, { content: json });
+  } else {
+    // Crear un Note nuevo
+    await frappeCreateDoc('Note', { title, content: json, public: 1 });
+  }
+
   // 2. Solo actualizar caché local si el backend tuvo éxito
   localStorage.setItem(CACHE_PREFIX + key, json);
 }
