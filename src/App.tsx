@@ -18,6 +18,8 @@ import Training from '@/pages/Training';
 import Organization from '@/pages/Organization';
 import Settings from '@/pages/Settings';
 import NominaMX from '@/pages/NominaMX';
+import NominaUSA from '@/pages/NominaUSA';
+import NominaCol from '@/pages/NominaCol';
 import EmployeeDetail from '@/pages/EmployeeDetail';
 import Notices from '@/pages/Notices';
 import GoogleSync from '@/pages/GoogleSync';
@@ -203,6 +205,22 @@ export default function App() {
               element={
                 <ProtectedRoute requiredSection="nomina-mx">
                   <NominaMX />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="nomina-usa"
+              element={
+                <ProtectedRoute requiredSection="nomina-usa">
+                  <NominaUSA />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="nomina-col"
+              element={
+                <ProtectedRoute requiredSection="nomina-col">
+                  <NominaCol />
                 </ProtectedRoute>
               }
             />

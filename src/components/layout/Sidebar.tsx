@@ -5,8 +5,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Shield,
+  Store,
   Database,
   BookOpen,
+  CloudDownload,
   SlidersHorizontal,
 } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -49,11 +51,12 @@ const CATEGORY_ACTIVE_BG: Record<string, string> = {
 
 // Admin panel navigation (always available for admins)
 const adminPanelNavigation: NavItem[] = [
-  { name: 'Módulos', href: '/admin/modules', icon: Shield, section: 'admin-modules', category: 'admin' },
+  { name: 'Módulos', href: '/admin/modules', icon: Store, section: 'admin-modules', category: 'admin' },
   { name: 'Roles', href: '/admin/roles', icon: Shield, section: 'admin-roles', category: 'admin' },
   { name: 'Usuarios', href: '/admin/users', icon: Users, section: 'admin-users', category: 'admin' },
   { name: 'Catálogos', href: '/admin/catalogs', icon: Database, section: 'admin-catalogs', category: 'admin' },
   { name: 'Plataforma', href: '/admin/platform', icon: BookOpen, section: 'admin-platform', category: 'admin' },
+  { name: 'Google Sync', href: '/google-sync', icon: CloudDownload, section: 'google-sync', category: 'admin' },
   { name: 'Configuración', href: '/settings', icon: Settings, section: 'settings', category: 'admin' },
 ];
 

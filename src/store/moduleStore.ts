@@ -11,8 +11,10 @@ function allPermissionIds(): string[] {
   return ALL_MODULES.flatMap((m) => m.permissions.map((p) => p.id));
 }
 
+const DISABLED_BY_DEFAULT = new Set(['nomina-usa', 'nomina-col']);
+
 const DEFAULT_MANIFEST: ModuleManifest = Object.fromEntries(
-  ALL_MODULES.map((m, i) => [m.id, { enabled: true, order: i }])
+  ALL_MODULES.map((m, i) => [m.id, { enabled: !DISABLED_BY_DEFAULT.has(m.id), order: i }])
 );
 
 const DEFAULT_BRANDING: PlatformBranding = {
@@ -93,7 +95,7 @@ function migrateManifest(raw: Record<string, { enabled: boolean; order?: number 
       }
     } else {
       needsMigration = true;
-      migrated[id] = { enabled: true, order: allIds.indexOf(id) };
+      migrated[id] = { enabled: !DISABLED_BY_DEFAULT.has(id), order: allIds.indexOf(id) };
     }
   }
 

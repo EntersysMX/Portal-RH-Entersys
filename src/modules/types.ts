@@ -9,6 +9,8 @@ export interface ModuleDefinition {
   id: string;
   label: string;
   description: string;
+  /** Texto largo con explicación detallada del módulo (para modal de info) */
+  details?: string;
   icon: LucideIcon;
   category: 'core' | 'hr' | 'payroll' | 'talent' | 'admin' | 'portal';
   /** Secciones de MenuSection que este módulo posee */

@@ -1,6 +1,6 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Check, X } from 'lucide-react';
+import { GripVertical, Check, X, Info } from 'lucide-react';
 import { clsx } from 'clsx';
 import type { ModuleDefinition } from '@/modules/types';
 
@@ -44,9 +44,10 @@ interface Props {
   module: ModuleDefinition;
   enabled: boolean;
   onToggle: () => void;
+  onInfo: () => void;
 }
 
-export default function ModuleStoreCard({ module, enabled, onToggle }: Props) {
+export default function ModuleStoreCard({ module, enabled, onToggle, onInfo }: Props) {
   const {
     attributes,
     listeners,
@@ -109,6 +110,15 @@ export default function ModuleStoreCard({ module, enabled, onToggle }: Props) {
           </span>
         </div>
       </div>
+
+      {/* Info button */}
+      <button
+        onClick={onInfo}
+        className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gray-50 text-gray-400 transition-colors hover:bg-blue-50 hover:text-blue-600"
+        title="Ver detalles del módulo"
+      >
+        <Info className="h-4 w-4" />
+      </button>
 
       {/* Toggle */}
       <button

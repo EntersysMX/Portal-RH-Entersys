@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react';
 import { Package, RotateCcw } from 'lucide-react';
 import { clsx } from 'clsx';
+import type { ModuleDefinition } from '@/modules/types';
+import Modal from '@/components/ui/Modal';
 import {
   DndContext,
   closestCenter,
@@ -33,6 +35,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 export default function AdminModules() {
   const { manifest, toggleModule, setManifest, updateModuleOrder } = useModuleStore();
   const [filter, setFilter] = useState<string>('all');
+  const [infoModule, setInfoModule] = useState<ModuleDefinition | null>(null);
 
   const categories = useMemo(
     () => ['all', ...Array.from(new Set(ALL_MODULES.map((m) => m.category)))],
@@ -160,6 +163,7 @@ export default function AdminModules() {
                   module={mod}
                   enabled={manifest[mod.id]?.enabled ?? false}
                   onToggle={() => handleToggle(mod.id)}
+                  onInfo={() => setInfoModule(mod)}
                 />
               ))}
             </SortableContext>
@@ -188,6 +192,93 @@ export default function AdminModules() {
           </div>
         </div>
       </div>
+
+      {/* Modal de información del módulo */}
+      <Modal
+        isOpen={!!infoModule}
+        onClose={() => setInfoModule(null)}
+        title={infoModule?.label ?? ''}
+        size="md"
+        footer={
+          <button onClick={() => setInfoModule(null)} className="btn-secondary">
+            Cerrar
+          </button>
+        }
+      >
+        {infoModule && (
+          <div className="space-y-4">
+            {/* Header con icono */}
+            <div className="flex items-center gap-3">
+              <div className={clsx(
+                'flex h-12 w-12 items-center justify-center rounded-xl',
+                CATEGORY_CARD_BG[infoModule.category] || 'bg-gray-100 text-gray-600'
+              )}>
+                <infoModule.icon className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">{infoModule.label}</h3>
+                <span className={clsx(
+                  'inline-block rounded-full px-2 py-0.5 text-[10px] font-medium',
+                  CATEGORY_BADGE[infoModule.category] || 'bg-gray-100 text-gray-700'
+                )}>
+                  {CATEGORY_LABELS[infoModule.category] || infoModule.category}
+                </span>
+              </div>
+            </div>
+
+            {/* Descripción corta */}
+            <p className="text-sm text-gray-600">{infoModule.description}</p>
+
+            {/* Detalles largos */}
+            {infoModule.details && (
+              <div className="rounded-lg bg-gray-50 p-3">
+                <p className="text-sm text-gray-700 leading-relaxed">{infoModule.details}</p>
+              </div>
+            )}
+
+            {/* Secciones */}
+            <div>
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-gray-400">Secciones</p>
+              <div className="flex flex-wrap gap-1.5">
+                {infoModule.sections.map((s) => (
+                  <span key={s} className="rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">{s}</span>
+                ))}
+              </div>
+            </div>
+
+            {/* Permisos */}
+            <div>
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-gray-400">Permisos ({infoModule.permissions.length})</p>
+              <div className="grid grid-cols-2 gap-1.5">
+                {infoModule.permissions.map((p) => (
+                  <div key={p.id} className="flex items-center gap-1.5 text-xs text-gray-600">
+                    <div className="h-1.5 w-1.5 rounded-full bg-green-400" />
+                    {p.label}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
+
+const CATEGORY_CARD_BG: Record<string, string> = {
+  core: 'bg-gray-100 text-gray-600',
+  hr: 'bg-blue-50 text-blue-600',
+  payroll: 'bg-emerald-50 text-emerald-600',
+  talent: 'bg-violet-50 text-violet-600',
+  admin: 'bg-orange-50 text-orange-600',
+  portal: 'bg-cyan-50 text-cyan-600',
+};
+
+const CATEGORY_BADGE: Record<string, string> = {
+  core: 'bg-gray-100 text-gray-700',
+  hr: 'bg-blue-100 text-blue-700',
+  payroll: 'bg-emerald-100 text-emerald-700',
+  talent: 'bg-violet-100 text-violet-700',
+  admin: 'bg-orange-100 text-orange-700',
+  portal: 'bg-cyan-100 text-cyan-700',
+};

@@ -28,6 +28,8 @@ export type MenuSection =
   | 'attendance'
   | 'payroll'
   | 'nomina-mx'
+  | 'nomina-usa'
+  | 'nomina-col'
   | 'expenses'
   | 'training'
   | 'organization'
@@ -56,7 +58,7 @@ export type Action = 'view' | 'create' | 'edit' | 'delete' | 'export';
 const PROFILE_MENU_ACCESS: Record<UserProfile, MenuSection[]> = {
   admin: [
     'dashboard', 'employees', 'employee-detail', 'recruitment', 'performance',
-    'attendance', 'payroll', 'nomina-mx', 'expenses',
+    'attendance', 'payroll', 'nomina-mx', 'nomina-usa', 'nomina-col', 'expenses',
     'training', 'organization', 'settings', 'notices', 'google-sync',
     // Admin panel
     'admin-modules', 'admin-roles', 'admin-users', 'admin-catalogs', 'admin-platform',
@@ -66,8 +68,8 @@ const PROFILE_MENU_ACCESS: Record<UserProfile, MenuSection[]> = {
   ],
   hr_manager: [
     'dashboard', 'employees', 'employee-detail', 'recruitment', 'performance',
-    'attendance', 'payroll', 'nomina-mx', 'expenses',
-    'training', 'organization', 'notices', 'google-sync',
+    'attendance', 'payroll', 'nomina-mx', 'nomina-usa', 'nomina-col', 'expenses',
+    'training', 'organization', 'notices',
     'portal', 'my-profile', 'my-payslips', 'my-attendance',
     'my-training', 'my-organization', 'my-notices',
   ],
