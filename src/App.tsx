@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/authStore';
@@ -59,10 +60,19 @@ function RootRedirect() {
 
 /**
  * Guard de autenticación que espera a que el store de módulos esté inicializado.
+ * Si el usuario ya tiene sesión (localStorage) y recarga la página, dispara init().
  */
 function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuthStore();
-  const { isInitialized, isLoading } = useModuleStore();
+  const { isAuthenticated, checkAuth } = useAuthStore();
+  const { isInitialized, isLoading, init } = useModuleStore();
+
+  useEffect(() => {
+    if (isAuthenticated && !isInitialized && !isLoading) {
+      // Verificar sesión con backend + cargar config de módulos
+      checkAuth();
+      init();
+    }
+  }, [isAuthenticated, isInitialized, isLoading, checkAuth, init]);
 
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
