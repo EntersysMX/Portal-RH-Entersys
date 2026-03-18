@@ -56,10 +56,14 @@ export default function ComboSelect({
 
   const showCreate = search.trim().length > 0 && !exactMatch;
 
+  const selectingRef = useRef(false);
+
   const handleSelect = (val: string) => {
+    selectingRef.current = true;
+    const match = options.find((o) => o.value === val);
+    setSearch(match ? match.label : val);
     onChange(val);
     setOpen(false);
-    inputRef.current?.blur();
   };
 
   const handleInputChange = (text: string) => {
@@ -68,8 +72,11 @@ export default function ComboSelect({
   };
 
   const handleBlur = () => {
-    // Small delay to allow click events on options to fire first
     setTimeout(() => {
+      if (selectingRef.current) {
+        selectingRef.current = false;
+        return;
+      }
       if (!containerRef.current?.contains(document.activeElement)) {
         setOpen(false);
         // Commit the typed text as the value
