@@ -7,6 +7,7 @@ import Modal from '@/components/ui/Modal';
 import { parseUploadedExcel, toEmployeeCreateData } from '@/lib/excel/bulkUploadParser';
 import { downloadPlantillaCargaMasiva } from '@/lib/excel/excelGenerator';
 import { employeeService, catalogService } from '@/api/services';
+import { parseFrappeError } from '@/lib/frappeErrors';
 import type { ParseResult, ParsedRow } from '@/lib/excel/bulkUploadParser';
 
 interface Props {
@@ -145,20 +146,30 @@ export default function BulkUploadModal({ isOpen, onClose, onComplete }: Props) 
     let created = 0;
     let failed = 0;
     const errors: string[] = [];
+    const BATCH_SIZE = 5;
 
-    for (let i = 0; i < validRows.length; i++) {
-      const row = validRows[i];
-      try {
-        const data = toEmployeeCreateData(row.employee);
-        await employeeService.create(data);
-        created++;
-      } catch (err) {
-        failed++;
-        const name = `${row.employee.first_name} ${row.employee.last_name}`;
-        const msg = err instanceof Error ? err.message : 'Error desconocido';
-        errors.push(`Fila ${row.employee.rowNumber} (${name}): ${msg}`);
+    for (let i = 0; i < validRows.length; i += BATCH_SIZE) {
+      const batch = validRows.slice(i, i + BATCH_SIZE);
+      const results = await Promise.allSettled(
+        batch.map((row) => {
+          const data = toEmployeeCreateData(row.employee);
+          return employeeService.create(data).then(() => ({ row, success: true as const }));
+        })
+      );
+
+      for (let j = 0; j < results.length; j++) {
+        const result = results[j];
+        const row = batch[j];
+        if (result.status === 'fulfilled') {
+          created++;
+        } else {
+          failed++;
+          const name = `${row.employee.first_name} ${row.employee.last_name}`;
+          const parsed = parseFrappeError(result.reason);
+          errors.push(`Fila ${row.employee.rowNumber} (${name}): [${parsed.code}] ${parsed.message}`);
+        }
       }
-      setImportProgress({ current: i + 1, total: validRows.length, errors: [...errors] });
+      setImportProgress({ current: Math.min(i + BATCH_SIZE, validRows.length), total: validRows.length, errors: [...errors] });
     }
 
     setImportResults({ created, failed, errors });

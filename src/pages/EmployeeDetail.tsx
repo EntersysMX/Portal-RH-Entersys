@@ -15,8 +15,9 @@ import StatusBadge from '@/components/ui/StatusBadge';
 import PayslipDetailModal from '@/components/payroll/PayslipDetailModal';
 import { useEmployeeFullProfile } from '@/hooks/useFrappe';
 import { downloadSalarySlipPdf, downloadEmployeeReportPdf } from '@/lib/pdf/pdfGenerator';
+import { toast } from '@/components/ui/Toast';
 import type {
-  SalarySlip, LeaveApplication, EmployeeBankAccount,
+  Employee, SalarySlip, LeaveApplication, EmployeeBankAccount,
   EmploymentContract, EmployeeBenefit, EmergencyContact,
   EmployeeDocument, EmployeeActivity, TrainingEvent,
 } from '@/types/frappe';
@@ -119,7 +120,13 @@ export default function EmployeeDetail() {
           </div>
         </div>
         <button
-          onClick={() => downloadEmployeeReportPdf(emp, slips)}
+          onClick={() => {
+            try {
+              downloadEmployeeReportPdf(emp, slips);
+            } catch (err) {
+              toast.fromError(err);
+            }
+          }}
           className="btn-secondary"
         >
           <Download className="h-4 w-4" />
@@ -178,8 +185,8 @@ export default function EmployeeDetail() {
 
 // ============= TAB COMPONENTS =============
 
-function TabGeneral({ emp }: { emp: ReturnType<typeof Object>}) {
-  const e = emp as any;
+function TabGeneral({ emp }: { emp: Employee }) {
+  const e = emp;
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
       <div className="card p-6">
@@ -218,7 +225,7 @@ function TabGeneral({ emp }: { emp: ReturnType<typeof Object>}) {
   );
 }
 
-function TabContacto({ emp, contacts }: { emp: any; contacts: EmergencyContact[] }) {
+function TabContacto({ emp, contacts }: { emp: Employee; contacts: EmergencyContact[] }) {
   return (
     <div className="space-y-6">
       <div className="card p-6">
@@ -348,7 +355,7 @@ function TabNomina({ slips, onView }: { slips: SalarySlip[]; onView: (s: SalaryS
           <button onClick={() => onView(s)} className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600" title="Ver detalle">
             <FileText className="h-4 w-4" />
           </button>
-          <button onClick={() => downloadSalarySlipPdf(s)} className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600" title="Descargar PDF">
+          <button onClick={() => { try { downloadSalarySlipPdf(s); } catch (err) { toast.fromError(err); } }} className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600" title="Descargar PDF">
             <Download className="h-4 w-4" />
           </button>
         </div>

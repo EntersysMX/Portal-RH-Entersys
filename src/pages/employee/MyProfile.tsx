@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { User, Mail, Phone, Building2, Briefcase, Calendar, MapPin, Save, ExternalLink, Shield, AlertCircle, CheckCircle } from 'lucide-react';
+import { User, Mail, Phone, Building2, Briefcase, Calendar, MapPin, Save, ExternalLink, Shield } from 'lucide-react';
 import { useMyEmployee, useUpdateMyProfile } from '@/hooks/useFrappe';
 import { useAuthStore } from '@/store/authStore';
+import { toast } from '@/components/ui/Toast';
 
 interface EditableFields {
   cell_phone: string;
@@ -20,7 +21,6 @@ export default function MyProfile() {
   const { data: employee, isLoading } = useMyEmployee();
   const updateMutation = useUpdateMyProfile();
   const [editing, setEditing] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [form, setForm] = useState<EditableFields>({
     cell_phone: '',
     personal_email: '',
@@ -53,11 +53,9 @@ export default function MyProfile() {
     try {
       await updateMutation.mutateAsync({ ...form } as Record<string, unknown>);
       setEditing(false);
-      setMessage({ type: 'success', text: 'Perfil actualizado correctamente' });
-      setTimeout(() => setMessage(null), 3000);
-    } catch {
-      setMessage({ type: 'error', text: 'Error al actualizar el perfil. Intenta de nuevo.' });
-      setTimeout(() => setMessage(null), 5000);
+      toast.success('Perfil actualizado', 'Tus datos se guardaron correctamente.');
+    } catch (err) {
+      toast.fromError(err);
     }
   };
 
@@ -119,16 +117,6 @@ export default function MyProfile() {
           </button>
         </div>
       </div>
-
-      {/* Message */}
-      {message && (
-        <div className={`flex items-center gap-2 rounded-lg border px-4 py-3 text-sm ${
-          message.type === 'success' ? 'border-green-200 bg-green-50 text-green-700' : 'border-red-200 bg-red-50 text-red-700'
-        }`}>
-          {message.type === 'success' ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
-          {message.text}
-        </div>
-      )}
 
       {/* Profile card */}
       <div className="card p-6">

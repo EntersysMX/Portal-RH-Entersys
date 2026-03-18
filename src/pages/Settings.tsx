@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { frappeTestConnection } from '@/api/client';
 import { usePermissions } from '@/hooks/usePermissions';
+import { toast } from '@/components/ui/Toast';
 import { RestartTourButton } from '@/components/onboarding/OnboardingTour';
 
 export default function Settings() {
@@ -28,7 +29,6 @@ export default function Settings() {
     localStorage.getItem('frappe_api_token') || ''
   );
   const [showToken, setShowToken] = useState(false);
-  const [saved, setSaved] = useState(false);
 
   // Test de conexión
   const [testing, setTesting] = useState(false);
@@ -46,9 +46,8 @@ export default function Settings() {
     } else {
       localStorage.removeItem('frappe_api_token');
     }
-    setSaved(true);
     setTestResult(null);
-    setTimeout(() => setSaved(false), 3000);
+    toast.success('Configuración guardada', 'Los datos de conexión se actualizaron.');
   };
 
   const handleTestConnection = async () => {
@@ -261,9 +260,6 @@ export default function Settings() {
               )}
               Probar Conexión
             </button>
-            {saved && (
-              <span className="text-sm font-medium text-green-600">Guardado</span>
-            )}
           </div>
 
           {/* Test result */}
@@ -367,8 +363,6 @@ function GoogleWorkspaceCard({ onNavigate }: { onNavigate: () => void }) {
   const [googleCompany, setGoogleCompany] = useState(
     localStorage.getItem('google_default_company') || ''
   );
-  const [googleSaved, setGoogleSaved] = useState(false);
-
   const handleSaveGoogle = () => {
     if (googleClientId) localStorage.setItem('google_client_id', googleClientId);
     else localStorage.removeItem('google_client_id');
@@ -376,8 +370,7 @@ function GoogleWorkspaceCard({ onNavigate }: { onNavigate: () => void }) {
     else localStorage.removeItem('google_domain');
     if (googleCompany) localStorage.setItem('google_default_company', googleCompany);
     else localStorage.removeItem('google_default_company');
-    setGoogleSaved(true);
-    setTimeout(() => setGoogleSaved(false), 3000);
+    toast.success('Google Workspace guardado', 'La configuración se actualizó correctamente.');
   };
 
   return (
@@ -436,12 +429,6 @@ function GoogleWorkspaceCard({ onNavigate }: { onNavigate: () => void }) {
             <CloudDownload className="h-4 w-4" />
             Ir a Google Sync
           </button>
-          {googleSaved && (
-            <span className="text-sm font-medium text-green-600">
-              <CheckCircle2 className="mr-1 inline h-4 w-4" />
-              Guardado
-            </span>
-          )}
         </div>
       </div>
     </div>

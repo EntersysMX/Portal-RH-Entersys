@@ -7,6 +7,7 @@ import {
   LogIn, Building2,
 } from 'lucide-react';
 import { employeeService } from '@/api/services';
+import { parseFrappeError } from '@/lib/frappeErrors';
 import type { Employee } from '@/types/frappe';
 import type {
   SyncStep, GoogleConfig, GoogleDirectoryUser, GoogleSheet,
@@ -160,18 +161,16 @@ export default function GoogleSync() {
 
     try {
       const urls = sheetUrls.split('\n').map((u) => u.trim()).filter(Boolean);
-      const results: GoogleSheet[] = [];
 
-      for (const url of urls) {
+      const ids = urls.map((url) => {
         const id = extractSpreadsheetId(url);
-        if (!id) {
-          setSheetsError(`URL invalida: ${url}`);
-          setSheetsLoading(false);
-          return;
-        }
-        const meta = await fetchSpreadsheetMeta(token!, id);
-        results.push(meta);
-      }
+        if (!id) throw new Error(`URL invalida: ${url}`);
+        return id;
+      });
+
+      const results = await Promise.all(
+        ids.map((id) => fetchSpreadsheetMeta(token!, id))
+      );
 
       setLoadedSheets(results);
       // Auto-select all sheets
@@ -199,28 +198,23 @@ export default function GoogleSync() {
     setMappingLoading(true);
 
     try {
-      const result: SheetWithMapping[] = [];
-
-      for (const key of selectedSheets) {
+      const keys = Array.from(selectedSheets);
+      const fetches = keys.map(async (key) => {
         const [spreadsheetId, sheetTitle] = key.split(':');
         const sheet = loadedSheets.find((s) => s.spreadsheetId === spreadsheetId);
-
         const data = await fetchSheetData(token!, spreadsheetId, sheetTitle);
-        const headers = data.headers;
-        const rows = data.rows;
-
-        const mappings = autoMapColumns(headers);
-
-        result.push({
+        const mappings = autoMapColumns(data.headers);
+        return {
           spreadsheetId,
           spreadsheetTitle: sheet?.title || spreadsheetId,
           sheetTitle,
-          headers,
-          rows,
+          headers: data.headers,
+          rows: data.rows,
           mappings,
-        });
-      }
+        } as SheetWithMapping;
+      });
 
+      const result = await Promise.all(fetches);
       setSheetsWithMapping(result);
     } catch (err) {
       setSheetsError(err instanceof Error ? err.message : 'Error al cargar datos');
@@ -278,21 +272,31 @@ export default function GoogleSync() {
     setStep('importing');
 
     const results: ImportResult[] = [];
+    const BATCH_SIZE = 5;
 
-    for (let i = 0; i < toImport.length; i++) {
+    for (let i = 0; i < toImport.length; i += BATCH_SIZE) {
       if (cancelRef.current) break;
 
-      const emp = toImport[i];
-      try {
-        await employeeService.create(emp.data);
-        results.push({ email: emp.email, name: `${emp.data.first_name} ${emp.data.last_name}`, success: true });
-        setImportResults([...results]);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Error desconocido';
-        results.push({ email: emp.email, name: `${emp.data.first_name} ${emp.data.last_name}`, success: false, error: msg });
-        setImportResults([...results]);
+      const batch = toImport.slice(i, i + BATCH_SIZE);
+      const settled = await Promise.allSettled(
+        batch.map((emp) =>
+          employeeService.create(emp.data).then(() => emp)
+        )
+      );
+
+      for (let j = 0; j < settled.length; j++) {
+        const s = settled[j];
+        const emp = batch[j];
+        const name = `${emp.data.first_name} ${emp.data.last_name}`;
+        if (s.status === 'fulfilled') {
+          results.push({ email: emp.email, name, success: true });
+        } else {
+          const parsed = parseFrappeError(s.reason);
+          results.push({ email: emp.email, name, success: false, error: `[${parsed.code}] ${parsed.message}` });
+        }
       }
-      setImportProgress({ current: i + 1, total: toImport.length });
+      setImportResults([...results]);
+      setImportProgress({ current: Math.min(i + BATCH_SIZE, toImport.length), total: toImport.length });
     }
 
     if (!cancelRef.current) {

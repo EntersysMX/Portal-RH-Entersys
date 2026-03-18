@@ -136,10 +136,17 @@ export const catalogService = {
   ensureExists: async (doctype: string, data: Record<string, unknown>): Promise<void> => {
     try {
       await frappeCreateDoc(doctype, data);
-    } catch (err) {
+    } catch (err: unknown) {
+      // Check exc_type from Frappe response first (most reliable)
+      const axiosErr = err as { response?: { data?: { exc_type?: string } } };
+      const excType = axiosErr?.response?.data?.exc_type || '';
       const msg = err instanceof Error ? err.message : String(err);
-      // Ignore if already exists (DuplicateEntryError / already exists)
-      if (msg.includes('DuplicateEntryError') || msg.includes('already exists') || msg.includes('Duplicate')) {
+      if (
+        excType === 'DuplicateEntryError' ||
+        msg.includes('DuplicateEntryError') ||
+        msg.includes('already exists') ||
+        msg.includes('Duplicate')
+      ) {
         return;
       }
       throw err;

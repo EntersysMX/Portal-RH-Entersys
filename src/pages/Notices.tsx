@@ -6,6 +6,7 @@ import DataTable, { Column } from '@/components/ui/DataTable';
 import Modal from '@/components/ui/Modal';
 import RoleGuard from '@/components/auth/RoleGuard';
 import { useNotices, useCreateNotice } from '@/hooks/useFrappe';
+import { toast } from '@/components/ui/Toast';
 import type { Notice } from '@/types/frappe';
 
 const TYPE_STYLES: Record<Notice['type'], { bg: string; text: string; icon: React.ComponentType<{className?: string}> }> = {
@@ -78,14 +79,19 @@ export default function Notices() {
   ];
 
   const handleCreate = async () => {
-    await createMutation.mutateAsync({
-      ...newNotice,
-      author: 'Admin',
-      posted_date: new Date().toISOString().split('T')[0],
-      status: 'Active',
-    } as Partial<Notice>);
-    setShowNewModal(false);
-    setNewNotice({ title: '', content: '', type: 'info', target_audience: 'all', expiry_date: '' });
+    try {
+      await createMutation.mutateAsync({
+        ...newNotice,
+        author: 'Admin',
+        posted_date: new Date().toISOString().split('T')[0],
+        status: 'Active',
+      } as Partial<Notice>);
+      toast.success('Aviso publicado', 'El aviso se creó correctamente.');
+      setShowNewModal(false);
+      setNewNotice({ title: '', content: '', type: 'info', target_audience: 'all', expiry_date: '' });
+    } catch (err) {
+      toast.fromError(err);
+    }
   };
 
   return (

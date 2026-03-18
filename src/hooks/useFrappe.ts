@@ -20,6 +20,7 @@ import {
   employeeProfileService,
 } from '@/api/services';
 import { useAuthStore } from '@/store/authStore';
+import { toast } from '@/components/ui/Toast';
 
 // ============================================
 // DASHBOARD
@@ -39,6 +40,7 @@ export function useEmployees(filters?: Record<string, unknown>, limit = 20, offs
   return useQuery({
     queryKey: ['employees', filters, limit, offset],
     queryFn: () => employeeService.list({ filters, limit, offset }),
+    staleTime: 30_000,
   });
 }
 
@@ -47,6 +49,7 @@ export function useEmployee(name: string) {
     queryKey: ['employee', name],
     queryFn: () => employeeService.get(name),
     enabled: !!name,
+    staleTime: 60_000,
   });
 }
 
@@ -55,6 +58,7 @@ export function useCreateEmployee() {
   return useMutation({
     mutationFn: employeeService.create,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['employees'] }),
+    onError: (error) => toast.fromError(error),
   });
 }
 
@@ -64,6 +68,7 @@ export function useUpdateEmployee() {
     mutationFn: ({ name, data }: { name: string; data: Record<string, unknown> }) =>
       employeeService.update(name, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['employees'] }),
+    onError: (error) => toast.fromError(error),
   });
 }
 
@@ -72,6 +77,7 @@ export function useDeleteEmployee() {
   return useMutation({
     mutationFn: employeeService.delete,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['employees'] }),
+    onError: (error) => toast.fromError(error),
   });
 }
 
@@ -133,6 +139,7 @@ export function useEnsureCatalog() {
       qc.invalidateQueries({ queryKey: ['companies'] });
       qc.invalidateQueries({ queryKey: ['branches'] });
     },
+    onError: (error) => toast.fromError(error),
   });
 }
 
@@ -143,6 +150,7 @@ export function useLeaves(filters?: Record<string, unknown>, limit = 20, offset 
   return useQuery({
     queryKey: ['leaves', filters, limit, offset],
     queryFn: () => leaveService.list({ filters, limit, offset }),
+    staleTime: 30_000,
   });
 }
 
@@ -151,6 +159,7 @@ export function useCreateLeave() {
   return useMutation({
     mutationFn: leaveService.create,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['leaves'] }),
+    onError: (error) => toast.fromError(error),
   });
 }
 
@@ -161,6 +170,7 @@ export function useAttendance(filters?: Record<string, unknown>, limit = 50) {
   return useQuery({
     queryKey: ['attendance', filters, limit],
     queryFn: () => attendanceService.list({ filters, limit }),
+    staleTime: 30_000,
   });
 }
 
@@ -171,6 +181,7 @@ export function useJobOpenings(filters?: Record<string, unknown>) {
   return useQuery({
     queryKey: ['job-openings', filters],
     queryFn: () => recruitmentService.listOpenings({ filters }),
+    staleTime: 60_000,
   });
 }
 
@@ -178,6 +189,7 @@ export function useJobApplicants(filters?: Record<string, unknown>) {
   return useQuery({
     queryKey: ['job-applicants', filters],
     queryFn: () => recruitmentService.listApplicants({ filters }),
+    staleTime: 60_000,
   });
 }
 
@@ -186,6 +198,7 @@ export function useCreateJobOpening() {
   return useMutation({
     mutationFn: recruitmentService.createOpening,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['job-openings'] }),
+    onError: (error) => toast.fromError(error),
   });
 }
 
@@ -194,6 +207,7 @@ export function useCreateApplicant() {
   return useMutation({
     mutationFn: recruitmentService.createApplicant,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['job-applicants'] }),
+    onError: (error) => toast.fromError(error),
   });
 }
 
@@ -204,6 +218,7 @@ export function useAppraisals(filters?: Record<string, unknown>) {
   return useQuery({
     queryKey: ['appraisals', filters],
     queryFn: () => performanceService.list({ filters }),
+    staleTime: 60_000,
   });
 }
 
@@ -212,6 +227,7 @@ export function useAppraisal(name: string) {
     queryKey: ['appraisal', name],
     queryFn: () => performanceService.get(name),
     enabled: !!name,
+    staleTime: 60_000,
   });
 }
 
@@ -222,6 +238,7 @@ export function useSalarySlips(filters?: Record<string, unknown>, limit = 20, of
   return useQuery({
     queryKey: ['salary-slips', filters, limit, offset],
     queryFn: () => payrollService.listSlips({ filters, limit, offset }),
+    staleTime: 60_000,
   });
 }
 
@@ -229,6 +246,7 @@ export function usePayrollEntries(filters?: Record<string, unknown>) {
   return useQuery({
     queryKey: ['payroll-entries', filters],
     queryFn: () => payrollService.listPayrollEntries({ filters }),
+    staleTime: 60_000,
   });
 }
 
@@ -239,6 +257,7 @@ export function useExpenseClaims(filters?: Record<string, unknown>) {
   return useQuery({
     queryKey: ['expense-claims', filters],
     queryFn: () => expenseService.list({ filters }),
+    staleTime: 60_000,
   });
 }
 
@@ -249,6 +268,7 @@ export function useTrainingEvents(filters?: Record<string, unknown>) {
   return useQuery({
     queryKey: ['training-events', filters],
     queryFn: () => trainingService.list({ filters }),
+    staleTime: 60_000,
   });
 }
 
@@ -267,6 +287,7 @@ export function useMyEmployee() {
     queryKey: ['my-employee', employeeId],
     queryFn: () => employeeService.get(employeeId!),
     enabled: !!employeeId,
+    staleTime: 60_000,
   });
 }
 
@@ -286,6 +307,7 @@ export function useMySalarySlips(limit = 20, offset = 0) {
         offset,
       }),
     enabled: !!employeeId,
+    staleTime: 60_000,
   });
 }
 
@@ -304,6 +326,7 @@ export function useMyAttendance(filters?: Record<string, unknown>, limit = 50) {
         limit,
       }),
     enabled: !!employeeId,
+    staleTime: 30_000,
   });
 }
 
@@ -322,6 +345,7 @@ export function useMyLeaves(filters?: Record<string, unknown>, limit = 20) {
         limit,
       }),
     enabled: !!employeeId,
+    staleTime: 30_000,
   });
 }
 
@@ -343,6 +367,7 @@ export function useEmployeeBankAccounts(id: string) {
     queryKey: ['employee-bank-accounts', id],
     queryFn: () => bankAccountService.listByEmployee(id),
     enabled: !!id,
+    staleTime: 60_000,
   });
 }
 
@@ -351,6 +376,7 @@ export function useEmployeeContracts(id: string) {
     queryKey: ['employee-contracts', id],
     queryFn: () => contractService.listByEmployee(id),
     enabled: !!id,
+    staleTime: 60_000,
   });
 }
 
@@ -359,6 +385,7 @@ export function useCreateBankAccount() {
   return useMutation({
     mutationFn: bankAccountService.create,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['employee-bank-accounts'] }),
+    onError: (error) => toast.fromError(error),
   });
 }
 
@@ -367,6 +394,7 @@ export function useCreateContract() {
   return useMutation({
     mutationFn: contractService.create,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['employee-contracts'] }),
+    onError: (error) => toast.fromError(error),
   });
 }
 
@@ -382,6 +410,7 @@ export function useUpdateMyProfile() {
       qc.invalidateQueries({ queryKey: ['my-employee'] });
       qc.invalidateQueries({ queryKey: ['employees'] });
     },
+    onError: (error) => toast.fromError(error),
   });
 }
 
@@ -398,5 +427,6 @@ export function useCreateNotice() {
   return useMutation({
     mutationFn: noticeService.create,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['notices'] }),
+    onError: (error) => toast.fromError(error),
   });
 }

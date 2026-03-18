@@ -31,6 +31,7 @@ import {
 import StatsCard from '@/components/ui/StatsCard';
 import { useDashboardStats, useNotices, useSalarySlips } from '@/hooks/useFrappe';
 import { downloadPayrollSummaryPdf } from '@/lib/pdf/pdfGenerator';
+import { toast } from '@/components/ui/Toast';
 import { clsx } from 'clsx';
 
 const COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316'];
@@ -263,7 +264,13 @@ export default function Dashboard() {
               </a>
             ))}
             <button
-              onClick={() => slips && downloadPayrollSummaryPdf(slips)}
+              onClick={() => {
+                try {
+                  if (slips) downloadPayrollSummaryPdf(slips);
+                } catch (err) {
+                  toast.fromError(err);
+                }
+              }}
               disabled={!slips || slips.length === 0}
               className="col-span-2 flex items-center justify-center gap-2 rounded-xl bg-cyan-50 px-4 py-3 text-sm font-medium text-cyan-700 transition-colors hover:bg-cyan-100 disabled:opacity-50"
             >

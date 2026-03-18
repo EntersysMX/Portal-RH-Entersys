@@ -45,8 +45,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       let roles: string[] = [];
       let employeeInfo: { employee_id: string; employee_name: string } | null = null;
       try {
-        roles = await frappeGetUserRoles(username);
-        employeeInfo = await frappeGetEmployeeByUser(username);
+        const [fetchedRoles, fetchedEmployee] = await Promise.all([
+          frappeGetUserRoles(username),
+          frappeGetEmployeeByUser(username),
+        ]);
+        roles = fetchedRoles;
+        employeeInfo = fetchedEmployee;
       } catch {
         roles = ['Employee'];
       }
@@ -90,8 +94,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           set({ user, isAuthenticated: true });
         } else {
           let roles: string[] = [];
+          let employeeInfo: { employee_id: string; employee_name: string } | null = null;
           try {
-            roles = await frappeGetUserRoles();
+            const [fetchedRoles, fetchedEmployee] = await Promise.all([
+              frappeGetUserRoles(response.message),
+              frappeGetEmployeeByUser(response.message),
+            ]);
+            roles = fetchedRoles;
+            employeeInfo = fetchedEmployee;
           } catch {
             roles = ['Employee'];
           }
@@ -100,6 +110,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             email: response.message,
             full_name: response.message,
             roles,
+            employee_id: employeeInfo?.employee_id,
+            employee_name: employeeInfo?.employee_name,
           };
           localStorage.setItem('frappe_user', JSON.stringify(user));
           set({ user, isAuthenticated: true });

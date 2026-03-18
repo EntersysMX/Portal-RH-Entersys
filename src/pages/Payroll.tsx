@@ -7,6 +7,7 @@ import PayslipDetailModal from '@/components/payroll/PayslipDetailModal';
 import { useSalarySlips } from '@/hooks/useFrappe';
 import { downloadSalarySlipPdf, downloadPayrollSummaryPdf } from '@/lib/pdf/pdfGenerator';
 import { downloadPayrollExcel } from '@/lib/excel/excelGenerator';
+import { toast } from '@/components/ui/Toast';
 import type { SalarySlip } from '@/types/frappe';
 
 export default function Payroll() {
@@ -73,7 +74,7 @@ export default function Payroll() {
             <Eye className="h-4 w-4" />
           </button>
           <button
-            onClick={() => downloadSalarySlipPdf(slip)}
+            onClick={() => { try { downloadSalarySlipPdf(slip); } catch (err) { toast.fromError(err); } }}
             className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
             title="Descargar PDF"
           >
@@ -93,7 +94,7 @@ export default function Payroll() {
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => slips && downloadPayrollExcel(slips)}
+            onClick={() => { try { if (slips) downloadPayrollExcel(slips); } catch (err) { toast.fromError(err); } }}
             disabled={!slips || slips.length === 0}
             className="btn-secondary"
           >
@@ -101,7 +102,7 @@ export default function Payroll() {
             Descargar Excel
           </button>
           <button
-            onClick={() => slips && downloadPayrollSummaryPdf(slips)}
+            onClick={() => { try { if (slips) downloadPayrollSummaryPdf(slips); } catch (err) { toast.fromError(err); } }}
             disabled={!slips || slips.length === 0}
             className="btn-secondary"
           >

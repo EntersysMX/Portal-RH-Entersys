@@ -10,6 +10,7 @@ import RoleGuard from '@/components/auth/RoleGuard';
 import ComboSelect from '@/components/ui/ComboSelect';
 import { useEmployees, useCreateEmployee, useDepartments, useDesignations, useCompanies } from '@/hooks/useFrappe';
 import { catalogService } from '@/api/services';
+import { toast } from '@/components/ui/Toast';
 import type { Employee } from '@/types/frappe';
 
 export default function Employees() {
@@ -94,49 +95,54 @@ export default function Employees() {
   ];
 
   const handleCreate = async () => {
-    // Pre-create catalog entries that don't exist
-    const promises: Promise<void>[] = [];
+    try {
+      // Pre-create catalog entries that don't exist
+      const promises: Promise<void>[] = [];
 
-    if (newEmployee.company && !companyOptions.some((o) => o.value === newEmployee.company)) {
-      promises.push(
-        catalogService.ensureExists('Company', {
-          company_name: newEmployee.company,
-          abbr: newEmployee.company.substring(0, 5).toUpperCase(),
-          default_currency: 'MXN',
-          country: 'Mexico',
-        })
-      );
-    }
-    if (newEmployee.designation && !designationOptions.some((o) => o.value === newEmployee.designation)) {
-      promises.push(
-        catalogService.ensureExists('Designation', { designation: newEmployee.designation })
-      );
-    }
-    if (newEmployee.department && !departmentOptions.some((o) => o.value === newEmployee.department)) {
-      promises.push(
-        catalogService.ensureExists('Department', {
-          department_name: newEmployee.department,
-          company: newEmployee.company || undefined,
-        })
-      );
-    }
+      if (newEmployee.company && !companyOptions.some((o) => o.value === newEmployee.company)) {
+        promises.push(
+          catalogService.ensureExists('Company', {
+            company_name: newEmployee.company,
+            abbr: newEmployee.company.substring(0, 5).toUpperCase(),
+            default_currency: 'MXN',
+            country: 'Mexico',
+          })
+        );
+      }
+      if (newEmployee.designation && !designationOptions.some((o) => o.value === newEmployee.designation)) {
+        promises.push(
+          catalogService.ensureExists('Designation', { designation: newEmployee.designation })
+        );
+      }
+      if (newEmployee.department && !departmentOptions.some((o) => o.value === newEmployee.department)) {
+        promises.push(
+          catalogService.ensureExists('Department', {
+            department_name: newEmployee.department,
+            company: newEmployee.company || undefined,
+          })
+        );
+      }
 
-    if (promises.length > 0) {
-      await Promise.all(promises);
-    }
+      if (promises.length > 0) {
+        await Promise.all(promises);
+      }
 
-    await createMutation.mutateAsync(newEmployee);
-    setShowNewModal(false);
-    setNewEmployee({
-      first_name: '',
-      last_name: '',
-      gender: '',
-      date_of_birth: '',
-      date_of_joining: '',
-      department: '',
-      designation: '',
-      company: '',
-    });
+      await createMutation.mutateAsync(newEmployee);
+      toast.success('Empleado creado', 'El empleado se registró correctamente.');
+      setShowNewModal(false);
+      setNewEmployee({
+        first_name: '',
+        last_name: '',
+        gender: '',
+        date_of_birth: '',
+        date_of_joining: '',
+        department: '',
+        designation: '',
+        company: '',
+      });
+    } catch (err) {
+      toast.fromError(err);
+    }
   };
 
   return (
