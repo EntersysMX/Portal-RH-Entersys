@@ -9,7 +9,7 @@ interface StatsCardProps {
   color?: 'blue' | 'green' | 'purple' | 'orange' | 'red' | 'cyan';
 }
 
-const colorMap = {
+const iconBgMap = {
   blue: 'bg-blue-50 text-blue-600',
   green: 'bg-green-50 text-green-600',
   purple: 'bg-purple-50 text-purple-600',
@@ -18,9 +18,21 @@ const colorMap = {
   cyan: 'bg-cyan-50 text-cyan-600',
 };
 
+const borderTopMap = {
+  blue: 'border-t-blue-500',
+  green: 'border-t-green-500',
+  purple: 'border-t-purple-500',
+  orange: 'border-t-orange-500',
+  red: 'border-t-red-500',
+  cyan: 'border-t-cyan-500',
+};
+
 export default function StatsCard({ title, value, icon: Icon, trend, color = 'blue' }: StatsCardProps) {
   return (
-    <div className="card group transition-shadow hover:shadow-md">
+    <div className={clsx(
+      'card group border-t-[3px] transition-all hover:shadow-md hover:-translate-y-0.5',
+      borderTopMap[color],
+    )}>
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm font-medium text-gray-500">{title}</p>
@@ -45,7 +57,7 @@ export default function StatsCard({ title, value, icon: Icon, trend, color = 'bl
             </div>
           )}
         </div>
-        <div className={clsx('rounded-xl p-3', colorMap[color])}>
+        <div className={clsx('rounded-xl p-3', iconBgMap[color])}>
           <Icon className="h-6 w-6" />
         </div>
       </div>

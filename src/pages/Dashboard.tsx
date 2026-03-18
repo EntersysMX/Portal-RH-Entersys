@@ -69,9 +69,9 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="mt-1 text-gray-500">
+      <div className="rounded-xl bg-gradient-to-r from-primary-600 to-primary-800 px-6 py-5 shadow-md">
+        <h1 className="text-2xl font-bold text-white">Dashboard</h1>
+        <p className="mt-1 text-primary-200">
           Resumen general de Recursos Humanos
         </p>
       </div>
@@ -147,7 +147,7 @@ export default function Dashboard() {
       {/* Charts Row 1 */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Hiring Trends */}
-        <div className="card">
+        <div className="card border-t-[3px] border-t-blue-500">
           <h3 className="mb-4 text-base font-semibold text-gray-900">
             Tendencia de Contrataciones
           </h3>
@@ -170,7 +170,7 @@ export default function Dashboard() {
         </div>
 
         {/* Department Distribution */}
-        <div className="card">
+        <div className="card border-t-[3px] border-t-emerald-500">
           <h3 className="mb-4 text-base font-semibold text-gray-900">
             Distribución por Departamento
           </h3>
@@ -216,7 +216,7 @@ export default function Dashboard() {
       {/* Notices + Quick Actions Row */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Recent Notices */}
-        <div className="card">
+        <div className="card border-t-[3px] border-t-amber-500">
           <div className="mb-4 flex items-center justify-between">
             <h3 className="text-base font-semibold text-gray-900">Avisos Recientes</h3>
             <button onClick={() => navigate('/notices')} className="text-sm font-medium text-primary-600 hover:underline">
@@ -246,7 +246,7 @@ export default function Dashboard() {
         </div>
 
         {/* Quick actions */}
-        <div className="card">
+        <div className="card border-t-[3px] border-t-violet-500">
           <h3 className="mb-4 text-base font-semibold text-gray-900">Acciones Rápidas</h3>
           <div className="grid grid-cols-2 gap-3">
             {[

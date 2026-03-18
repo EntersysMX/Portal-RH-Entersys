@@ -5,7 +5,7 @@ import OnboardingTour from '../onboarding/OnboardingTour';
 
 export default function AppLayout() {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50">
       <Sidebar />
       <div className="ml-64 transition-all duration-300">
         <Topbar />

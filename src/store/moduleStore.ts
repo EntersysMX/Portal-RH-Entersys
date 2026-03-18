@@ -174,12 +174,13 @@ export const useModuleStore = create<ModuleStoreState>((set, get) => ({
   },
 
   // ========== MODULE ACTIONS (solo admin) ==========
+  // Patrón: optimistic update → guardar en BD → si falla, revertir estado
   toggleModule: async (moduleId: string) => {
     if (!isCurrentUserAdmin()) return;
-    const current = get().manifest;
-    const existing = current[moduleId];
+    const previous = get().manifest;
+    const existing = previous[moduleId];
     const updated = {
-      ...current,
+      ...previous,
       [moduleId]: {
         enabled: !existing?.enabled,
         order: existing?.order ?? ALL_MODULES.findIndex((m) => m.id === moduleId),
@@ -189,24 +190,27 @@ export const useModuleStore = create<ModuleStoreState>((set, get) => ({
     try {
       await platformConfigService.saveManifest(updated);
     } catch {
-      toast.error('Error al guardar', 'No se pudo guardar en la base de datos. El cambio se conserva localmente.');
+      set({ manifest: previous }); // Revertir
+      toast.error('Error al guardar', 'No se pudo guardar en la base de datos. El cambio fue revertido.');
     }
   },
 
   setManifest: async (manifest: ModuleManifest) => {
     if (!isCurrentUserAdmin()) return;
+    const previous = get().manifest;
     set({ manifest });
     try {
       await platformConfigService.saveManifest(manifest);
     } catch {
-      toast.error('Error al guardar', 'No se pudo guardar en la base de datos. El cambio se conserva localmente.');
+      set({ manifest: previous }); // Revertir
+      toast.error('Error al guardar', 'No se pudo guardar en la base de datos. El cambio fue revertido.');
     }
   },
 
   updateModuleOrder: async (orderedIds: string[]) => {
     if (!isCurrentUserAdmin()) return;
-    const current = get().manifest;
-    const updated = { ...current };
+    const previous = get().manifest;
+    const updated = { ...previous };
     orderedIds.forEach((id, index) => {
       if (updated[id]) {
         updated[id] = { ...updated[id], order: index };
@@ -216,16 +220,19 @@ export const useModuleStore = create<ModuleStoreState>((set, get) => ({
     try {
       await platformConfigService.saveManifest(updated);
     } catch {
+      set({ manifest: previous }); // Revertir
       toast.error('Error al guardar', 'No se pudo guardar el orden en la base de datos.');
     }
   },
 
   setBranding: async (branding: PlatformBranding) => {
     if (!isCurrentUserAdmin()) return;
+    const previousBranding = get().branding;
     set({ branding });
     try {
       await platformConfigService.saveBranding(branding);
     } catch {
+      set({ branding: previousBranding }); // Revertir
       toast.error('Error al guardar', 'No se pudo guardar el branding en la base de datos.');
     }
   },
@@ -235,24 +242,28 @@ export const useModuleStore = create<ModuleStoreState>((set, get) => ({
     if (!isCurrentUserAdmin()) return;
     const id = `custom_${Date.now()}`;
     const role: CustomRole = { ...data, id, isSystem: false };
-    const roles = [...get().roles, role];
+    const previousRoles = get().roles;
+    const roles = [...previousRoles, role];
     set({ roles });
     try {
       await platformConfigService.saveRoles(roles);
     } catch {
+      set({ roles: previousRoles });
       toast.error('Error al guardar', 'No se pudo guardar el rol en la base de datos.');
     }
   },
 
   updateRole: async (id, data) => {
     if (!isCurrentUserAdmin()) return;
-    const roles = get().roles.map((r) =>
+    const previousRoles = get().roles;
+    const roles = previousRoles.map((r) =>
       r.id === id ? { ...r, ...data } : r
     );
     set({ roles });
     try {
       await platformConfigService.saveRoles(roles);
     } catch {
+      set({ roles: previousRoles });
       toast.error('Error al guardar', 'No se pudo guardar el rol en la base de datos.');
     }
   },
@@ -261,8 +272,10 @@ export const useModuleStore = create<ModuleStoreState>((set, get) => ({
     if (!isCurrentUserAdmin()) return;
     const role = get().roles.find((r) => r.id === id);
     if (role?.isSystem) return;
-    const roles = get().roles.filter((r) => r.id !== id);
-    const assignments = get().assignments.map((a) => ({
+    const previousRoles = get().roles;
+    const previousAssignments = get().assignments;
+    const roles = previousRoles.filter((r) => r.id !== id);
+    const assignments = previousAssignments.map((a) => ({
       ...a,
       customRoleIds: a.customRoleIds.filter((rid) => rid !== id),
     }));
@@ -273,17 +286,20 @@ export const useModuleStore = create<ModuleStoreState>((set, get) => ({
         platformConfigService.saveAssignments(assignments),
       ]);
     } catch {
+      set({ roles: previousRoles, assignments: previousAssignments });
       toast.error('Error al guardar', 'No se pudo guardar en la base de datos.');
     }
   },
 
   resetRoles: async () => {
     if (!isCurrentUserAdmin()) return;
+    const previousRoles = get().roles;
     const roles = DEFAULT_ROLES.map((r) => ({ ...r }));
     set({ roles });
     try {
       await platformConfigService.saveRoles(roles);
     } catch {
+      set({ roles: previousRoles });
       toast.error('Error al guardar', 'No se pudo guardar los roles en la base de datos.');
     }
   },
@@ -291,23 +307,27 @@ export const useModuleStore = create<ModuleStoreState>((set, get) => ({
   // ========== ASSIGNMENT ACTIONS (solo admin) ==========
   setUserRoles: async (userEmail, userName, roleIds) => {
     if (!isCurrentUserAdmin()) return;
-    const assignments = get().assignments.filter((a) => a.userEmail !== userEmail);
+    const previousAssignments = get().assignments;
+    const assignments = previousAssignments.filter((a) => a.userEmail !== userEmail);
     assignments.push({ userEmail, userName, customRoleIds: roleIds });
     set({ assignments });
     try {
       await platformConfigService.saveAssignments(assignments);
     } catch {
+      set({ assignments: previousAssignments });
       toast.error('Error al guardar', 'No se pudo guardar las asignaciones en la base de datos.');
     }
   },
 
   removeUserAssignment: async (userEmail) => {
     if (!isCurrentUserAdmin()) return;
-    const assignments = get().assignments.filter((a) => a.userEmail !== userEmail);
+    const previousAssignments = get().assignments;
+    const assignments = previousAssignments.filter((a) => a.userEmail !== userEmail);
     set({ assignments });
     try {
       await platformConfigService.saveAssignments(assignments);
     } catch {
+      set({ assignments: previousAssignments });
       toast.error('Error al guardar', 'No se pudo guardar las asignaciones en la base de datos.');
     }
   },
