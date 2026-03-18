@@ -1,3 +1,5 @@
+import { isSectionEnabled } from '@/modules/registry';
+
 // ============================================
 // SISTEMA DE PERMISOS (RBAC)
 // ============================================
@@ -32,6 +34,10 @@ export type MenuSection =
   | 'settings'
   | 'notices'
   | 'google-sync'
+  // Admin panel
+  | 'admin-modules'
+  | 'admin-roles'
+  | 'admin-users'
   // Portal de empleado
   | 'portal'
   | 'my-profile'
@@ -50,6 +56,8 @@ const PROFILE_MENU_ACCESS: Record<UserProfile, MenuSection[]> = {
     'dashboard', 'employees', 'employee-detail', 'recruitment', 'performance',
     'attendance', 'payroll', 'nomina-mx', 'expenses',
     'training', 'organization', 'settings', 'notices', 'google-sync',
+    // Admin panel
+    'admin-modules', 'admin-roles', 'admin-users',
     // Admin también puede ver el portal
     'portal', 'my-profile', 'my-payslips', 'my-attendance',
     'my-training', 'my-organization', 'my-notices',
@@ -110,8 +118,12 @@ export function getUserProfile(roles: string[]): UserProfile {
 
 /**
  * Verifica si el usuario puede ver una sección del menú.
+ * Ahora también verifica que el módulo esté habilitado.
  */
 export function canAccessSection(roles: string[], section: MenuSection): boolean {
+  // Primero verificar si el módulo que contiene esta sección está habilitado
+  if (!isSectionEnabled(section)) return false;
+
   const profile = getUserProfile(roles);
   return PROFILE_MENU_ACCESS[profile].includes(section);
 }
@@ -120,6 +132,8 @@ export function canAccessSection(roles: string[], section: MenuSection): boolean
  * Verifica si el usuario puede realizar una acción en una sección.
  */
 export function canPerformAction(roles: string[], section: MenuSection, action: Action): boolean {
+  if (!isSectionEnabled(section)) return false;
+
   const profile = getUserProfile(roles);
   const actions = PROFILE_ACTIONS[profile];
 
@@ -131,10 +145,11 @@ export function canPerformAction(roles: string[], section: MenuSection, action: 
 
 /**
  * Obtiene las secciones del menú visibles para el usuario.
+ * Filtrado por módulos habilitados.
  */
 export function getVisibleSections(roles: string[]): MenuSection[] {
   const profile = getUserProfile(roles);
-  return PROFILE_MENU_ACCESS[profile];
+  return PROFILE_MENU_ACCESS[profile].filter((s) => isSectionEnabled(s));
 }
 
 /**

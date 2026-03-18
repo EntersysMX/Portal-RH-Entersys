@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, User, Briefcase, Phone, Building2, FileText, Calendar,
   DollarSign, CalendarCheck, GraduationCap, FolderOpen, Activity,
-  Heart, Download, ExternalLink, Clock,
+  Heart, Download, ExternalLink, Clock, Upload, Trash2, File, Image, FileSpreadsheet,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import {
@@ -13,13 +13,14 @@ import StatsCard from '@/components/ui/StatsCard';
 import DataTable, { Column } from '@/components/ui/DataTable';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PayslipDetailModal from '@/components/payroll/PayslipDetailModal';
-import { useEmployeeFullProfile } from '@/hooks/useFrappe';
+import Modal from '@/components/ui/Modal';
+import { useEmployeeFullProfile, useEmployeeDocuments, useUploadEmployeeDocument, useDeleteEmployeeDocument } from '@/hooks/useFrappe';
 import { downloadSalarySlipPdf, downloadEmployeeReportPdf } from '@/lib/pdf/pdfGenerator';
 import { toast } from '@/components/ui/Toast';
 import type {
   Employee, SalarySlip, LeaveApplication, EmployeeBankAccount,
   EmploymentContract, EmployeeBenefit, EmergencyContact,
-  EmployeeDocument, EmployeeActivity, TrainingEvent,
+  EmployeeActivity, TrainingEvent, FrappeFile,
 } from '@/types/frappe';
 
 const TABS = [
@@ -174,7 +175,7 @@ export default function EmployeeDetail() {
         {activeTab === 'asistencia' && <TabAsistencia summary={profile.attendance_summary} />}
         {activeTab === 'vacaciones' && <TabVacaciones leaves={profile.leaves} />}
         {activeTab === 'capacitacion' && <TabCapacitacion trainings={profile.training_events} />}
-        {activeTab === 'documentos' && <TabDocumentos docs={profile.documents} />}
+        {activeTab === 'documentos' && <TabDocumentos employeeId={id!} />}
         {activeTab === 'actividades' && <TabActividades activities={profile.activities} />}
       </div>
 
@@ -430,28 +431,185 @@ function TabCapacitacion({ trainings }: { trainings: TrainingEvent[] }) {
   );
 }
 
-function TabDocumentos({ docs }: { docs: EmployeeDocument[] }) {
+function getFileIcon(fileName: string) {
+  const ext = fileName.split('.').pop()?.toLowerCase() || '';
+  if (['pdf'].includes(ext)) return <FileText className="h-5 w-5" />;
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext)) return <Image className="h-5 w-5" />;
+  if (['xls', 'xlsx', 'csv'].includes(ext)) return <FileSpreadsheet className="h-5 w-5" />;
+  return <File className="h-5 w-5" />;
+}
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function TabDocumentos({ employeeId }: { employeeId: string }) {
+  const { data: docs, isLoading } = useEmployeeDocuments(employeeId);
+  const uploadMutation = useUploadEmployeeDocument();
+  const deleteMutation = useDeleteEmployeeDocument();
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<FrappeFile | null>(null);
+
+  const handleFiles = useCallback((files: FileList | File[]) => {
+    const fileArray = Array.from(files);
+    fileArray.forEach((file) => {
+      uploadMutation.mutate({ employeeId, file }, {
+        onSuccess: () => toast.success(`"${file.name}" subido correctamente`),
+      });
+    });
+  }, [employeeId, uploadMutation]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files.length > 0) {
+      handleFiles(e.dataTransfer.files);
+    }
+  }, [handleFiles]);
+
+  const confirmDelete = useCallback(() => {
+    if (!deleteTarget) return;
+    deleteMutation.mutate(deleteTarget.name, {
+      onSuccess: () => {
+        toast.success(`"${deleteTarget.file_name}" eliminado`);
+        setDeleteTarget(null);
+      },
+    });
+  }, [deleteTarget, deleteMutation]);
+
+  if (isLoading) {
+    return (
+      <div className="flex h-32 items-center justify-center">
+        <div className="h-6 w-6 animate-spin rounded-full border-4 border-primary-600 border-t-transparent" />
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-3">
-      {docs.length === 0 && <p className="card p-6 text-center text-gray-400">Sin documentos registrados</p>}
-      {docs.map((d) => (
-        <div key={d.name} className="card flex items-center justify-between p-4">
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-blue-50 p-2 text-blue-600">
-              <FolderOpen className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="font-medium text-gray-900">{d.document_name}</p>
-              <p className="text-xs text-gray-400">{d.document_type}</p>
-            </div>
-          </div>
-          {d.file_url && (
-            <a href={d.file_url} target="_blank" rel="noopener noreferrer" className="btn-ghost text-sm">
-              <Download className="h-4 w-4" /> Descargar
-            </a>
+    <div className="space-y-4">
+      {/* Drop zone + upload button */}
+      <div
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={clsx(
+          'card flex flex-col items-center justify-center gap-3 border-2 border-dashed p-8 transition-colors',
+          isDragging ? 'border-primary-400 bg-primary-50' : 'border-gray-300 bg-gray-50'
+        )}
+      >
+        <Upload className={clsx('h-8 w-8', isDragging ? 'text-primary-500' : 'text-gray-400')} />
+        <div className="text-center">
+          <p className="text-sm font-medium text-gray-700">
+            {isDragging ? 'Suelta los archivos aquí' : 'Arrastra archivos aquí o'}
+          </p>
+          {!isDragging && (
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="mt-1 text-sm font-semibold text-primary-600 hover:text-primary-700"
+            >
+              selecciona desde tu equipo
+            </button>
           )}
         </div>
-      ))}
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            if (e.target.files && e.target.files.length > 0) {
+              handleFiles(e.target.files);
+              e.target.value = '';
+            }
+          }}
+        />
+        {uploadMutation.isPending && (
+          <p className="text-xs text-gray-500">Subiendo...</p>
+        )}
+      </div>
+
+      {/* Document list */}
+      {(!docs || docs.length === 0) ? (
+        <p className="card p-6 text-center text-gray-400">Sin documentos registrados</p>
+      ) : (
+        <div className="space-y-2">
+          {docs.map((d) => (
+            <div key={d.name} className="card flex items-center justify-between p-4">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-blue-50 p-2 text-blue-600">
+                  {getFileIcon(d.file_name)}
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">{d.file_name}</p>
+                  <div className="flex items-center gap-2 text-xs text-gray-400">
+                    <span>{formatFileSize(d.file_size)}</span>
+                    <span>·</span>
+                    <span>{new Date(d.creation).toLocaleDateString('es-MX')}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-1">
+                <a
+                  href={d.file_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                  title="Descargar"
+                >
+                  <Download className="h-4 w-4" />
+                </a>
+                <button
+                  onClick={() => setDeleteTarget(d)}
+                  className="rounded p-2 text-gray-400 hover:bg-red-50 hover:text-red-500"
+                  title="Eliminar"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Delete confirmation modal */}
+      <Modal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="Eliminar documento"
+        size="sm"
+        footer={
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setDeleteTarget(null)} className="btn-secondary">
+              Cancelar
+            </button>
+            <button
+              onClick={confirmDelete}
+              disabled={deleteMutation.isPending}
+              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+            >
+              {deleteMutation.isPending ? 'Eliminando...' : 'Eliminar'}
+            </button>
+          </div>
+        }
+      >
+        <p className="text-sm text-gray-600">
+          ¿Estás seguro de que deseas eliminar <strong>{deleteTarget?.file_name}</strong>? Esta acción no se puede deshacer.
+        </p>
+      </Modal>
     </div>
   );
 }

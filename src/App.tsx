@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/authStore';
+import { useModuleStore } from '@/store/moduleStore';
 import { usePermissions } from '@/hooks/usePermissions';
 import AppLayout from '@/components/layout/AppLayout';
 import ToastContainer from '@/components/ui/Toast';
@@ -19,6 +20,10 @@ import NominaMX from '@/pages/NominaMX';
 import EmployeeDetail from '@/pages/EmployeeDetail';
 import Notices from '@/pages/Notices';
 import GoogleSync from '@/pages/GoogleSync';
+// Admin panel
+import AdminModules from '@/pages/admin/AdminModules';
+import AdminRoles from '@/pages/admin/AdminRoles';
+import AdminUsers from '@/pages/admin/AdminUsers';
 // Portal de empleado
 import EmployeeDashboard from '@/pages/employee/EmployeeDashboard';
 import MyProfile from '@/pages/employee/MyProfile';
@@ -53,11 +58,23 @@ function RootRedirect() {
 }
 
 /**
- * Guard simple de autenticación (sin verificar rol).
+ * Guard de autenticación que espera a que el store de módulos esté inicializado.
  */
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
+  const { isInitialized, isLoading } = useModuleStore();
+
   if (!isAuthenticated) return <Navigate to="/login" replace />;
+
+  // Wait for module config to load from backend before rendering routes
+  if (!isInitialized || isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-600 border-t-transparent" />
+      </div>
+    );
+  }
+
   return <>{children}</>;
 }
 
@@ -191,6 +208,32 @@ export default function App() {
               element={
                 <ProtectedRoute requiredSection="google-sync">
                   <GoogleSync />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* ========== Admin Panel ========== */}
+            <Route
+              path="admin/modules"
+              element={
+                <ProtectedRoute requiredSection="admin-modules">
+                  <AdminModules />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="admin/roles"
+              element={
+                <ProtectedRoute requiredSection="admin-roles">
+                  <AdminRoles />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="admin/users"
+              element={
+                <ProtectedRoute requiredSection="admin-users">
+                  <AdminUsers />
                 </ProtectedRoute>
               }
             />

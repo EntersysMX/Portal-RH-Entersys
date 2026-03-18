@@ -6,6 +6,7 @@ import {
   frappeDeleteDoc,
   frappeGetCount,
   frappeCall,
+  frappeUploadFile,
 } from './client';
 import type {
   Employee,
@@ -27,6 +28,7 @@ import type {
   EmploymentContract,
   EmployeeBenefit,
   EmployeeFullProfile,
+  FrappeFile,
   Notice,
 } from '@/types/frappe';
 
@@ -473,6 +475,34 @@ export const noticeService = {
 };
 
 // ============================================
+// EMPLOYEE DOCUMENT SERVICE (File-based)
+// ============================================
+export const employeeDocumentService = {
+  listByEmployee: (employeeId: string) =>
+    frappeGetList<FrappeFile>({
+      doctype: 'File',
+      fields: ['name', 'file_name', 'file_url', 'file_size', 'is_private', 'creation', 'owner'],
+      filters: {
+        attached_to_doctype: 'Employee',
+        attached_to_name: employeeId,
+      },
+      order_by: 'creation desc',
+      limit_page_length: 50,
+    }),
+
+  upload: (employeeId: string, file: File) =>
+    frappeUploadFile({
+      file,
+      doctype: 'Employee',
+      docname: employeeId,
+      is_private: true,
+    }),
+
+  delete: (name: string) =>
+    frappeDeleteDoc('File', name),
+};
+
+// ============================================
 // EMPLOYEE FULL PROFILE SERVICE
 // ============================================
 export const employeeProfileService = {
@@ -521,4 +551,64 @@ export const payrollServiceExtended = {
   listSlipsWithDemo: (params?: { filters?: Record<string, unknown>; limit?: number; offset?: number }) => {
     return payrollService.listSlips(params);
   },
+};
+
+// ============================================
+// PLATFORM CONFIG SERVICE
+// Persiste configuración de módulos, roles y
+// asignaciones en la BD de Frappe usando
+// frappe.client.get_default / set_default
+// con localStorage como caché de respaldo.
+// ============================================
+const CACHE_PREFIX = 'enterhr_cache_';
+
+async function loadConfig<T>(key: string, fallback: T): Promise<T> {
+  // 1. Intentar desde el backend
+  try {
+    const raw = await frappeCall<string | null>('frappe.client.get_default', { key });
+    if (raw) {
+      const parsed = JSON.parse(raw) as T;
+      // Guardar en caché local
+      localStorage.setItem(CACHE_PREFIX + key, raw);
+      return parsed;
+    }
+  } catch {
+    // Backend no disponible, intentar caché local
+    try {
+      const cached = localStorage.getItem(CACHE_PREFIX + key);
+      if (cached) return JSON.parse(cached) as T;
+    } catch { /* ignore */ }
+  }
+  return fallback;
+}
+
+async function saveConfig<T>(key: string, data: T): Promise<void> {
+  const json = JSON.stringify(data);
+  // Guardar en backend
+  await frappeCall('frappe.client.set_default', { key, value: json });
+  // Guardar en caché local
+  localStorage.setItem(CACHE_PREFIX + key, json);
+}
+
+export const platformConfigService = {
+  loadConfig,
+  saveConfig,
+
+  loadManifest: (fallback: Record<string, { enabled: boolean }>) =>
+    loadConfig<Record<string, { enabled: boolean }>>('enterhr_manifest', fallback),
+
+  saveManifest: (data: Record<string, { enabled: boolean }>) =>
+    saveConfig('enterhr_manifest', data),
+
+  loadRoles: (fallback: { id: string; name: string; description: string; isSystem: boolean; permissions: string[] }[]) =>
+    loadConfig('enterhr_roles', fallback),
+
+  saveRoles: (data: { id: string; name: string; description: string; isSystem: boolean; permissions: string[] }[]) =>
+    saveConfig('enterhr_roles', data),
+
+  loadAssignments: (fallback: { userEmail: string; userName: string; customRoleIds: string[] }[]) =>
+    loadConfig('enterhr_assignments', fallback),
+
+  saveAssignments: (data: { userEmail: string; userName: string; customRoleIds: string[] }[]) =>
+    saveConfig('enterhr_assignments', data),
 };

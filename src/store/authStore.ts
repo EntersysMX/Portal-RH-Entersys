@@ -1,7 +1,11 @@
 import { create } from 'zustand';
-import { frappeLogin, frappeLogout, frappeGetLoggedUser, frappeGetUserRoles, frappeGetEmployeeByUser } from '@/api/client';
+import {
+  frappeLogin, frappeLogout, frappeGetLoggedUser,
+  frappeGetUserRoles, frappeGetEmployeeByUser, frappeCall,
+} from '@/api/client';
 import type { FrappeUser } from '@/types/frappe';
 import { isAdmin, isHR, isEmployeeOnly, hasAnyRole, getUserProfile, getHomePath } from '@/lib/permissions';
+import { useModuleStore } from './moduleStore';
 
 interface AuthState {
   user: FrappeUser | null;
@@ -27,6 +31,37 @@ function getStoredUser(): FrappeUser | null {
     return stored ? (JSON.parse(stored) as FrappeUser) : null;
   } catch {
     return null;
+  }
+}
+
+/**
+ * Intenta generar un API token para el usuario.
+ * Solo funciona si el usuario tiene permisos (admin/system manager).
+ * Si falla, se usa la auth por cookie de sesión.
+ */
+async function tryGenerateApiToken(username: string): Promise<void> {
+  try {
+    // Verificar si ya hay un token almacenado
+    if (localStorage.getItem('frappe_api_token')) return;
+
+    // Intentar generar claves API
+    const result = await frappeCall<{ api_secret: string }>(
+      'frappe.core.doctype.user.user.generate_keys',
+      { user: username }
+    );
+    if (result?.api_secret) {
+      // Obtener el api_key del doc del usuario
+      const userDoc = await frappeCall<{ api_key: string }>(
+        'frappe.client.get_value',
+        { doctype: 'User', filters: username, fieldname: 'api_key' }
+      );
+      if (userDoc?.api_key) {
+        const token = `${userDoc.api_key}:${result.api_secret}`;
+        localStorage.setItem('frappe_api_token', token);
+      }
+    }
+  } catch {
+    // No se pudo generar token — se usa cookie de sesión (ya funciona)
   }
 }
 
@@ -65,6 +100,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       };
       localStorage.setItem('frappe_user', JSON.stringify(user));
       set({ user, isAuthenticated: true, isLoading: false });
+
+      // Post-login: generar token + cargar config de módulos (async, no bloquea)
+      tryGenerateApiToken(username);
+      useModuleStore.getState().init();
     } catch (err) {
       console.error('[Auth] Login error:', err);
       const msg = err instanceof Error ? err.message : String(err);
@@ -116,6 +155,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           localStorage.setItem('frappe_user', JSON.stringify(user));
           set({ user, isAuthenticated: true });
         }
+        // Cargar config de módulos desde el backend
+        useModuleStore.getState().init();
       } else {
         set({ user: null, isAuthenticated: false });
       }

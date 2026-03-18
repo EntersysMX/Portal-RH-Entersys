@@ -16,6 +16,7 @@ import {
   dashboardService,
   bankAccountService,
   contractService,
+  employeeDocumentService,
   noticeService,
   employeeProfileService,
 } from '@/api/services';
@@ -427,6 +428,38 @@ export function useCreateNotice() {
   return useMutation({
     mutationFn: noticeService.create,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['notices'] }),
+    onError: (error) => toast.fromError(error),
+  });
+}
+
+// ============================================
+// EMPLOYEE DOCUMENTS
+// ============================================
+
+export function useEmployeeDocuments(employeeId: string) {
+  return useQuery({
+    queryKey: ['employee-documents', employeeId],
+    queryFn: () => employeeDocumentService.listByEmployee(employeeId),
+    enabled: !!employeeId,
+    staleTime: 30_000,
+  });
+}
+
+export function useUploadEmployeeDocument() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ employeeId, file }: { employeeId: string; file: File }) =>
+      employeeDocumentService.upload(employeeId, file),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['employee-documents'] }),
+    onError: (error) => toast.fromError(error),
+  });
+}
+
+export function useDeleteEmployeeDocument() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: employeeDocumentService.delete,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['employee-documents'] }),
     onError: (error) => toast.fromError(error),
   });
 }

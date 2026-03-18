@@ -262,6 +262,29 @@ export async function frappeCall<T>(method: string, args?: Record<string, unknow
 }
 
 /**
+ * Subir un archivo a Frappe.
+ * POST /api/method/upload_file (multipart/form-data)
+ * Puede vincularse a un DocType/docname para asociar el archivo.
+ */
+export async function frappeUploadFile(params: {
+  file: File;
+  doctype?: string;
+  docname?: string;
+  is_private?: boolean;
+}): Promise<{ file_url: string; name: string }> {
+  const formData = new FormData();
+  formData.append('file', params.file);
+  if (params.doctype) formData.append('doctype', params.doctype);
+  if (params.docname) formData.append('docname', params.docname);
+  formData.append('is_private', params.is_private ? '1' : '0');
+
+  const res = await client.post('/api/method/upload_file', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return res.data.message;
+}
+
+/**
  * Ejecutar un reporte de Frappe.
  * GET /api/method/frappe.client.get_report
  */

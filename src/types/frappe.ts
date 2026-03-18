@@ -294,6 +294,18 @@ export interface EmployeeDocument {
   document_type: string;
   document_name: string;
   file_url?: string;
+  creation?: string;
+  owner?: string;
+}
+
+export interface FrappeFile {
+  name: string;
+  file_name: string;
+  file_url: string;
+  file_size: number;
+  is_private: boolean;
+  creation: string;
+  owner: string;
 }
 
 export interface EmployeeActivity {
