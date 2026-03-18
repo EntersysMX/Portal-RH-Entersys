@@ -54,6 +54,23 @@ const DEFAULT_ROLES: CustomRole[] = [
 ];
 
 // ============================================
+// SEGURIDAD: verificar si el usuario actual es admin
+// Importar authStore aquí crearía dependencia circular,
+// así que leemos directamente de localStorage (misma fuente de verdad).
+// ============================================
+function isCurrentUserAdmin(): boolean {
+  try {
+    const stored = localStorage.getItem('frappe_user');
+    if (!stored) return false;
+    const user = JSON.parse(stored) as { roles?: string[] };
+    const roles = user.roles ?? [];
+    return roles.includes('Administrator') || roles.includes('System Manager');
+  } catch {
+    return false;
+  }
+}
+
+// ============================================
 // STORE
 // ============================================
 interface ModuleStoreState {
@@ -63,24 +80,26 @@ interface ModuleStoreState {
   roles: CustomRole[];
   assignments: UserRoleAssignment[];
 
-  /** Carga la configuración desde el backend de Frappe */
+  /** Carga la configuración desde el backend (todos los usuarios). */
   init: () => Promise<void>;
 
-  // Module actions (async — persisten en BD)
+  // === ACCIONES DE ESCRITURA (solo admin) ===
+  // Estas funciones persisten en BD via platformConfigService.
+  // Frappe rechazará set_default si no es System Manager,
+  // y además el frontend valida isCurrentUserAdmin() como segunda barrera.
+
   toggleModule: (moduleId: string) => Promise<void>;
   setManifest: (manifest: ModuleManifest) => Promise<void>;
 
-  // Role actions (async — persisten en BD)
   addRole: (role: Omit<CustomRole, 'id' | 'isSystem'>) => Promise<void>;
   updateRole: (id: string, data: Partial<Pick<CustomRole, 'name' | 'description' | 'permissions'>>) => Promise<void>;
   deleteRole: (id: string) => Promise<void>;
   resetRoles: () => Promise<void>;
 
-  // Assignment actions (async — persisten en BD)
   setUserRoles: (userEmail: string, userName: string, roleIds: string[]) => Promise<void>;
   removeUserAssignment: (userEmail: string) => Promise<void>;
 
-  // Queries (sync — leen del state)
+  // === QUERIES (lectura, todos los usuarios) ===
   getRoleById: (id: string) => CustomRole | undefined;
   getUserRoleIds: (userEmail: string) => string[];
   getPermissionsForRoles: (roleIds: string[]) => Set<string>;
@@ -93,7 +112,7 @@ export const useModuleStore = create<ModuleStoreState>((set, get) => ({
   roles: DEFAULT_ROLES.map((r) => ({ ...r })),
   assignments: [],
 
-  // ========== INIT — carga desde Frappe ==========
+  // ========== INIT — lectura desde Frappe (todos los usuarios) ==========
   init: async () => {
     if (get().isInitialized || get().isLoading) return;
     set({ isLoading: true });
@@ -111,13 +130,14 @@ export const useModuleStore = create<ModuleStoreState>((set, get) => ({
         isLoading: false,
       });
     } catch {
-      // Si falla, usar defaults y marcar como inicializado
+      // Si falla completamente, usar defaults y no bloquear al usuario
       set({ isInitialized: true, isLoading: false });
     }
   },
 
-  // ========== MODULE ACTIONS ==========
+  // ========== MODULE ACTIONS (solo admin) ==========
   toggleModule: async (moduleId: string) => {
+    if (!isCurrentUserAdmin()) return;
     const current = get().manifest;
     const updated = {
       ...current,
@@ -128,12 +148,14 @@ export const useModuleStore = create<ModuleStoreState>((set, get) => ({
   },
 
   setManifest: async (manifest: ModuleManifest) => {
+    if (!isCurrentUserAdmin()) return;
     set({ manifest });
     await platformConfigService.saveManifest(manifest).catch(() => {});
   },
 
-  // ========== ROLE ACTIONS ==========
+  // ========== ROLE ACTIONS (solo admin) ==========
   addRole: async (data) => {
+    if (!isCurrentUserAdmin()) return;
     const id = `custom_${Date.now()}`;
     const role: CustomRole = { ...data, id, isSystem: false };
     const roles = [...get().roles, role];
@@ -142,6 +164,7 @@ export const useModuleStore = create<ModuleStoreState>((set, get) => ({
   },
 
   updateRole: async (id, data) => {
+    if (!isCurrentUserAdmin()) return;
     const roles = get().roles.map((r) =>
       r.id === id ? { ...r, ...data } : r
     );
@@ -150,10 +173,10 @@ export const useModuleStore = create<ModuleStoreState>((set, get) => ({
   },
 
   deleteRole: async (id) => {
+    if (!isCurrentUserAdmin()) return;
     const role = get().roles.find((r) => r.id === id);
     if (role?.isSystem) return;
     const roles = get().roles.filter((r) => r.id !== id);
-    // Limpiar asignaciones que usen este rol
     const assignments = get().assignments.map((a) => ({
       ...a,
       customRoleIds: a.customRoleIds.filter((rid) => rid !== id),
@@ -166,13 +189,15 @@ export const useModuleStore = create<ModuleStoreState>((set, get) => ({
   },
 
   resetRoles: async () => {
+    if (!isCurrentUserAdmin()) return;
     const roles = DEFAULT_ROLES.map((r) => ({ ...r }));
     set({ roles });
     await platformConfigService.saveRoles(roles).catch(() => {});
   },
 
-  // ========== ASSIGNMENT ACTIONS ==========
+  // ========== ASSIGNMENT ACTIONS (solo admin) ==========
   setUserRoles: async (userEmail, userName, roleIds) => {
+    if (!isCurrentUserAdmin()) return;
     const assignments = get().assignments.filter((a) => a.userEmail !== userEmail);
     assignments.push({ userEmail, userName, customRoleIds: roleIds });
     set({ assignments });
@@ -180,12 +205,13 @@ export const useModuleStore = create<ModuleStoreState>((set, get) => ({
   },
 
   removeUserAssignment: async (userEmail) => {
+    if (!isCurrentUserAdmin()) return;
     const assignments = get().assignments.filter((a) => a.userEmail !== userEmail);
     set({ assignments });
     await platformConfigService.saveAssignments(assignments).catch(() => {});
   },
 
-  // ========== QUERIES (sync) ==========
+  // ========== QUERIES (lectura, todos los usuarios) ==========
   getRoleById: (id) => {
     return get().roles.find((r) => r.id === id);
   },

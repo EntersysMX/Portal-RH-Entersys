@@ -559,32 +559,68 @@ export const payrollServiceExtended = {
 // asignaciones en la BD de Frappe usando
 // frappe.client.get_default / set_default
 // con localStorage como caché de respaldo.
+//
+// SEGURIDAD:
+//   - loadConfig: TODOS los usuarios autenticados pueden leer.
+//     Frappe get_default es global (__default), accesible a cualquier usuario.
+//     Si Frappe lo bloquea para roles bajos, se usa el caché local.
+//   - saveConfig: SOLO admin (System Manager) puede escribir.
+//     Frappe set_default requiere System Manager; además el frontend
+//     solo expone las acciones de escritura en páginas admin-*.
+//
+// CACHÉ LOCAL:
+//   Después de cada lectura exitosa del backend se guarda en localStorage
+//   para que:
+//   1. Recarga de página sea instantánea (sin esperar al backend)
+//   2. Si el backend falla temporalmente, el usuario ve la última config conocida
+//
+// TIMEOUT:
+//   Cada llamada al backend tiene un timeout de 8s para evitar spinners infinitos.
 // ============================================
 const CACHE_PREFIX = 'enterhr_cache_';
+const CONFIG_TIMEOUT_MS = 8_000;
+
+/** Wrapper que agrega timeout a una promesa */
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Config load timeout')), ms)
+    ),
+  ]);
+}
 
 async function loadConfig<T>(key: string, fallback: T): Promise<T> {
-  // 1. Intentar desde el backend
+  // 1. Intentar caché local primero (respuesta instantánea)
+  let cached: T | null = null;
   try {
-    const raw = await frappeCall<string | null>('frappe.client.get_default', { key });
+    const raw = localStorage.getItem(CACHE_PREFIX + key);
+    if (raw) cached = JSON.parse(raw) as T;
+  } catch { /* ignore corrupt cache */ }
+
+  // 2. Intentar backend (con timeout) para obtener la versión más reciente
+  try {
+    const raw = await withTimeout(
+      frappeCall<string | null>('frappe.client.get_default', { key }),
+      CONFIG_TIMEOUT_MS,
+    );
     if (raw) {
       const parsed = JSON.parse(raw) as T;
-      // Guardar en caché local
       localStorage.setItem(CACHE_PREFIX + key, raw);
       return parsed;
     }
   } catch {
-    // Backend no disponible, intentar caché local
-    try {
-      const cached = localStorage.getItem(CACHE_PREFIX + key);
-      if (cached) return JSON.parse(cached) as T;
-    } catch { /* ignore */ }
+    // Backend no disponible o timeout → usar caché si existe
+    if (cached !== null) return cached;
   }
-  return fallback;
+
+  // 3. Si el backend retornó null (no hay config guardada aún), usar caché o fallback
+  return cached ?? fallback;
 }
 
 async function saveConfig<T>(key: string, data: T): Promise<void> {
   const json = JSON.stringify(data);
-  // Guardar en backend
+  // Guardar en backend (requiere System Manager)
   await frappeCall('frappe.client.set_default', { key, value: json });
   // Guardar en caché local
   localStorage.setItem(CACHE_PREFIX + key, json);

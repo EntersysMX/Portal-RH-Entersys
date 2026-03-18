@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/authStore';
@@ -59,24 +59,47 @@ function RootRedirect() {
 }
 
 /**
- * Guard de autenticación que espera a que el store de módulos esté inicializado.
- * Si el usuario ya tiene sesión (localStorage) y recarga la página, dispara init().
+ * Guard de autenticación + inicialización de la app.
+ *
+ * Responsabilidades:
+ *   1. Redirigir a /login si no hay sesión
+ *   2. Verificar la sesión con el backend (checkAuth)
+ *   3. Cargar la config de módulos/roles desde BD (init)
+ *   4. Timeout de seguridad: si init no termina en 10s, forzar isInitialized
+ *      para que el usuario nunca se quede en spinner infinito
+ *
+ * La config que init() carga es la MISMA para todos los usuarios —
+ * es la que el admin configuró. Los empleados la leen, solo el admin la escribe.
  */
+const INIT_TIMEOUT_MS = 10_000;
+
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, checkAuth } = useAuthStore();
   const { isInitialized, isLoading, init } = useModuleStore();
+  const didInit = useRef(false);
 
   useEffect(() => {
-    if (isAuthenticated && !isInitialized && !isLoading) {
-      // Verificar sesión con backend + cargar config de módulos
-      checkAuth();
-      init();
-    }
-  }, [isAuthenticated, isInitialized, isLoading, checkAuth, init]);
+    if (!isAuthenticated || didInit.current) return;
+    didInit.current = true;
+
+    // Verificar sesión con backend (también llama init internamente)
+    checkAuth();
+    // Cargar config de módulos (tiene guard interno contra doble llamada)
+    init();
+
+    // Timeout de seguridad: si init no resuelve en N segundos, desbloquear
+    const timer = setTimeout(() => {
+      const state = useModuleStore.getState();
+      if (!state.isInitialized) {
+        useModuleStore.setState({ isInitialized: true, isLoading: false });
+      }
+    }, INIT_TIMEOUT_MS);
+
+    return () => clearTimeout(timer);
+  }, [isAuthenticated, checkAuth, init]);
 
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
-  // Wait for module config to load from backend before rendering routes
   if (!isInitialized || isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
