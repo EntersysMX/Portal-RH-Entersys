@@ -16,8 +16,8 @@ const CATEGORY_LABELS: Record<string, string> = {
 const CATEGORY_COLORS: Record<string, string> = {
   core: 'bg-gray-100 text-gray-700',
   hr: 'bg-blue-100 text-blue-700',
-  payroll: 'bg-green-100 text-green-700',
-  talent: 'bg-purple-100 text-purple-700',
+  payroll: 'bg-emerald-100 text-emerald-700',
+  talent: 'bg-violet-100 text-violet-700',
   admin: 'bg-orange-100 text-orange-700',
   portal: 'bg-cyan-100 text-cyan-700',
 };
@@ -25,10 +25,19 @@ const CATEGORY_COLORS: Record<string, string> = {
 const CATEGORY_ICON_BG: Record<string, string> = {
   core: 'bg-gray-100 text-gray-600',
   hr: 'bg-blue-50 text-blue-600',
-  payroll: 'bg-green-50 text-green-600',
-  talent: 'bg-purple-50 text-purple-600',
+  payroll: 'bg-emerald-50 text-emerald-600',
+  talent: 'bg-violet-50 text-violet-600',
   admin: 'bg-orange-50 text-orange-600',
   portal: 'bg-cyan-50 text-cyan-600',
+};
+
+const CATEGORY_BORDER: Record<string, string> = {
+  core: 'border-l-gray-400',
+  hr: 'border-l-blue-400',
+  payroll: 'border-l-emerald-400',
+  talent: 'border-l-violet-400',
+  admin: 'border-l-orange-400',
+  portal: 'border-l-cyan-400',
 };
 
 interface Props {
@@ -53,6 +62,8 @@ export default function ModuleStoreCard({ module, enabled, onToggle }: Props) {
   };
 
   const Icon = module.icon;
+  // Usar el label del primer navItem (lo que se ve en el menú)
+  const menuLabel = module.navItems[0]?.label || module.label;
 
   return (
     <div
@@ -60,9 +71,11 @@ export default function ModuleStoreCard({ module, enabled, onToggle }: Props) {
       style={style}
       className={clsx(
         'flex items-center gap-3 rounded-xl border bg-white px-3 py-3 transition-all',
+        enabled && 'border-l-4',
+        enabled && CATEGORY_BORDER[module.category],
         isDragging && 'z-50 shadow-lg ring-2 ring-primary-300',
         !enabled && 'opacity-50',
-        enabled ? 'border-gray-200' : 'border-gray-100'
+        !enabled && 'border-gray-100'
       )}
     >
       {/* Drag handle */}
@@ -83,9 +96,9 @@ export default function ModuleStoreCard({ module, enabled, onToggle }: Props) {
         <Icon className="h-5 w-5" />
       </div>
 
-      {/* Info */}
+      {/* Info — usa el nombre del menú */}
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-gray-900">{module.label}</p>
+        <p className="text-sm font-semibold text-gray-900">{menuLabel}</p>
         <p className="truncate text-xs text-gray-500">{module.description}</p>
         <div className="mt-1 flex flex-wrap gap-1">
           <span className={clsx('rounded-full px-2 py-0.5 text-[10px] font-medium', CATEGORY_COLORS[module.category])}>

@@ -20,6 +20,11 @@ export default defineConfig({
         changeOrigin: true,
         headers: { Host: 'hr.localhost' },
       },
+      '/files': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        headers: { Host: 'hr.localhost' },
+      },
     },
   },
 })

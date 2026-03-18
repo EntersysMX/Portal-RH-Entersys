@@ -44,7 +44,7 @@ export const ALL_MODULES: ModuleDefinition[] = [
   // ===== HR =====
   {
     id: 'rh',
-    label: 'Recursos Humanos',
+    label: 'Empleados',
     description: 'Gestión de empleados, expedientes y datos laborales',
     icon: Users,
     category: 'hr',

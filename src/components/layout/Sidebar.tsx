@@ -25,16 +25,36 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   section: MenuSection;
   end?: boolean;
+  category?: string;
 }
+
+/** Colores sutiles por categoría para los iconos del sidebar */
+const CATEGORY_ICON_COLORS: Record<string, { active: string; idle: string }> = {
+  core:    { active: 'text-gray-700',   idle: 'text-gray-500' },
+  hr:      { active: 'text-blue-600',   idle: 'text-blue-500' },
+  payroll: { active: 'text-emerald-600', idle: 'text-emerald-500' },
+  talent:  { active: 'text-violet-600', idle: 'text-violet-500' },
+  admin:   { active: 'text-orange-600', idle: 'text-orange-500' },
+  portal:  { active: 'text-cyan-600',   idle: 'text-cyan-500' },
+};
+
+const CATEGORY_ACTIVE_BG: Record<string, string> = {
+  core:    'bg-gray-100',
+  hr:      'bg-blue-50',
+  payroll: 'bg-emerald-50',
+  talent:  'bg-violet-50',
+  admin:   'bg-orange-50',
+  portal:  'bg-cyan-50',
+};
 
 // Admin panel navigation (always available for admins)
 const adminPanelNavigation: NavItem[] = [
-  { name: 'Módulos', href: '/admin/modules', icon: Shield, section: 'admin-modules' },
-  { name: 'Roles', href: '/admin/roles', icon: Shield, section: 'admin-roles' },
-  { name: 'Usuarios', href: '/admin/users', icon: Users, section: 'admin-users' },
-  { name: 'Catálogos', href: '/admin/catalogs', icon: Database, section: 'admin-catalogs' },
-  { name: 'Plataforma', href: '/admin/platform', icon: BookOpen, section: 'admin-platform' },
-  { name: 'Configuración', href: '/settings', icon: Settings, section: 'settings' },
+  { name: 'Módulos', href: '/admin/modules', icon: Shield, section: 'admin-modules', category: 'admin' },
+  { name: 'Roles', href: '/admin/roles', icon: Shield, section: 'admin-roles', category: 'admin' },
+  { name: 'Usuarios', href: '/admin/users', icon: Users, section: 'admin-users', category: 'admin' },
+  { name: 'Catálogos', href: '/admin/catalogs', icon: Database, section: 'admin-catalogs', category: 'admin' },
+  { name: 'Plataforma', href: '/admin/platform', icon: BookOpen, section: 'admin-platform', category: 'admin' },
+  { name: 'Configuración', href: '/settings', icon: Settings, section: 'settings', category: 'admin' },
 ];
 
 export default function Sidebar() {
@@ -63,6 +83,7 @@ export default function Sidebar() {
             icon: item.icon,
             section: item.section as MenuSection,
             end: item.end,
+            category: mod.category,
           });
         });
       });
@@ -78,6 +99,7 @@ export default function Sidebar() {
           icon: item.icon,
           section: item.section as MenuSection,
           end: item.end,
+          category: 'portal',
         });
       });
     }
@@ -98,7 +120,7 @@ export default function Sidebar() {
   return (
     <aside
       className={clsx(
-        'fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-gray-200 bg-white transition-all duration-300',
+        'fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-gray-200 bg-slate-50 transition-all duration-300',
         collapsed ? 'w-[72px]' : 'w-64'
       )}
     >
@@ -107,39 +129,41 @@ export default function Sidebar() {
         <SidebarCustomizer onClose={() => setShowCustomizer(false)} />
       )}
 
-      {/* Logo — dynamic branding */}
-      <div data-tour="sidebar-logo" className="flex h-16 items-center justify-between border-b border-gray-200 px-4">
+      {/* Logo — dynamic branding — area más grande */}
+      <div data-tour="sidebar-logo" className="flex items-center border-b border-gray-200 bg-white px-4" style={{ minHeight: collapsed ? 64 : 72 }}>
         {!collapsed && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3 py-3">
             {branding.companyLogoUrl ? (
-              <BrandedLogo src={branding.companyLogoUrl} size="md" />
+              <BrandedLogo src={branding.companyLogoUrl} size="lg" className="!h-11 !w-11" />
             ) : (
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-600">
-                <Users className="h-5 w-5 text-white" />
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 shadow-sm">
+                <Users className="h-6 w-6 text-white" />
               </div>
             )}
             <div>
-              <h1 className="text-lg font-bold text-gray-900">EnterHR</h1>
-              <p className="text-[10px] text-gray-400">
+              <h1 className="text-lg font-bold text-gray-900 leading-tight">EnterHR</h1>
+              <p className="text-[10px] text-gray-400 leading-tight">
                 {branding.companyName || 'Plataforma de Capital Humano'}
               </p>
             </div>
           </div>
         )}
         {collapsed && (
-          branding.companyLogoUrl ? (
-            <BrandedLogo src={branding.companyLogoUrl} size="md" className="mx-auto" />
-          ) : (
-            <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-lg bg-primary-600">
-              <Users className="h-5 w-5 text-white" />
-            </div>
-          )
+          <div className="mx-auto py-3">
+            {branding.companyLogoUrl ? (
+              <BrandedLogo src={branding.companyLogoUrl} size="md" />
+            ) : (
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 shadow-sm">
+                <Users className="h-5 w-5 text-white" />
+              </div>
+            )}
+          </div>
         )}
       </div>
 
       {/* Role badge */}
       {!collapsed && (
-        <div className="border-b border-gray-200 px-4 py-2">
+        <div className="border-b border-gray-200 bg-white px-4 py-2">
           <span className={clsx('inline-block rounded-full px-2.5 py-0.5 text-xs font-medium', profileBadgeColor)}>
             {profileLabel}
           </span>
@@ -156,9 +180,12 @@ export default function Sidebar() {
                 Administración
               </p>
             )}
-            <div data-tour="sidebar-admin-nav">
+            <div data-tour="sidebar-admin-nav" className="space-y-0.5">
               {visibleMain.map((item) => {
                 const tourId = item.href.replace(/\//g, '-').replace(/^-/, '');
+                const cat = item.category || 'core';
+                const colors = CATEGORY_ICON_COLORS[cat] || CATEGORY_ICON_COLORS.core;
+                const activeBg = CATEGORY_ACTIVE_BG[cat] || CATEGORY_ACTIVE_BG.core;
                 return (
                   <NavLink
                     key={item.href}
@@ -169,14 +196,18 @@ export default function Sidebar() {
                       clsx(
                         'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
                         isActive
-                          ? 'bg-primary-50 text-primary-700'
-                          : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900',
+                          ? `${activeBg} text-gray-900`
+                          : 'text-gray-600 hover:bg-white hover:text-gray-900 hover:shadow-sm',
                         collapsed && 'justify-center'
                       )
                     }
                   >
-                    <item.icon className="h-5 w-5 flex-shrink-0" />
-                    {!collapsed && <span>{item.name}</span>}
+                    {({ isActive }) => (
+                      <>
+                        <item.icon className={clsx('h-5 w-5 flex-shrink-0', isActive ? colors.active : colors.idle)} />
+                        {!collapsed && <span>{item.name}</span>}
+                      </>
+                    )}
                   </NavLink>
                 );
               })}
@@ -197,27 +228,36 @@ export default function Sidebar() {
                 {isEmployeeOnly ? 'Mi Portal' : 'Portal Empleado'}
               </p>
             )}
-            <div data-tour="sidebar-portal-nav">
-              {visiblePortal.map((item) => (
-                <NavLink
-                  key={item.href}
-                  to={item.href}
-                  end={item.end}
-                  data-tour={`nav-${item.section}`}
-                  className={({ isActive }) =>
-                    clsx(
-                      'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
-                      isActive
-                        ? 'bg-primary-50 text-primary-700'
-                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900',
-                      collapsed && 'justify-center'
-                    )
-                  }
-                >
-                  <item.icon className="h-5 w-5 flex-shrink-0" />
-                  {!collapsed && <span>{item.name}</span>}
-                </NavLink>
-              ))}
+            <div data-tour="sidebar-portal-nav" className="space-y-0.5">
+              {visiblePortal.map((item) => {
+                const cat = item.category || 'portal';
+                const colors = CATEGORY_ICON_COLORS[cat] || CATEGORY_ICON_COLORS.portal;
+                const activeBg = CATEGORY_ACTIVE_BG[cat] || CATEGORY_ACTIVE_BG.portal;
+                return (
+                  <NavLink
+                    key={item.href}
+                    to={item.href}
+                    end={item.end}
+                    data-tour={`nav-${item.section}`}
+                    className={({ isActive }) =>
+                      clsx(
+                        'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
+                        isActive
+                          ? `${activeBg} text-gray-900`
+                          : 'text-gray-600 hover:bg-white hover:text-gray-900 hover:shadow-sm',
+                        collapsed && 'justify-center'
+                      )
+                    }
+                  >
+                    {({ isActive }) => (
+                      <>
+                        <item.icon className={clsx('h-5 w-5 flex-shrink-0', isActive ? colors.active : colors.idle)} />
+                        {!collapsed && <span>{item.name}</span>}
+                      </>
+                    )}
+                  </NavLink>
+                );
+              })}
             </div>
           </>
         )}
@@ -235,30 +275,40 @@ export default function Sidebar() {
                 Panel Admin
               </p>
             )}
-            {visibleAdmin.map((item) => (
-              <NavLink
-                key={item.href}
-                to={item.href}
-                className={({ isActive }) =>
-                  clsx(
-                    'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
-                    isActive
-                      ? 'bg-primary-50 text-primary-700'
-                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900',
-                    collapsed && 'justify-center'
-                  )
-                }
-              >
-                <item.icon className="h-5 w-5 flex-shrink-0" />
-                {!collapsed && <span>{item.name}</span>}
-              </NavLink>
-            ))}
+            <div className="space-y-0.5">
+              {visibleAdmin.map((item) => {
+                const colors = CATEGORY_ICON_COLORS.admin;
+                const activeBg = CATEGORY_ACTIVE_BG.admin;
+                return (
+                  <NavLink
+                    key={item.href}
+                    to={item.href}
+                    className={({ isActive }) =>
+                      clsx(
+                        'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
+                        isActive
+                          ? `${activeBg} text-gray-900`
+                          : 'text-gray-600 hover:bg-white hover:text-gray-900 hover:shadow-sm',
+                        collapsed && 'justify-center'
+                      )
+                    }
+                  >
+                    {({ isActive }) => (
+                      <>
+                        <item.icon className={clsx('h-5 w-5 flex-shrink-0', isActive ? colors.active : colors.idle)} />
+                        {!collapsed && <span>{item.name}</span>}
+                      </>
+                    )}
+                  </NavLink>
+                );
+              })}
+            </div>
           </>
         )}
       </nav>
 
       {/* Bottom buttons */}
-      <div className="border-t border-gray-200 p-3 space-y-1">
+      <div className="border-t border-gray-200 bg-white p-3 space-y-1">
         {/* Customize sidebar button (only when expanded) */}
         {!collapsed && (
           <button
