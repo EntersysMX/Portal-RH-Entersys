@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { ModuleManifest, CustomRole, UserRoleAssignment, PlatformBranding } from '@/modules/types';
 import { ALL_MODULES, setManifestGetter } from '@/modules/registry';
 import { platformConfigService } from '@/api/services';
+import { toast } from '@/components/ui/Toast';
 
 // ============================================
 // ROLES POR DEFECTO (sistema)
@@ -185,13 +186,21 @@ export const useModuleStore = create<ModuleStoreState>((set, get) => ({
       },
     };
     set({ manifest: updated });
-    await platformConfigService.saveManifest(updated).catch(() => {});
+    try {
+      await platformConfigService.saveManifest(updated);
+    } catch {
+      toast.error('Error al guardar', 'No se pudo guardar en la base de datos. El cambio se conserva localmente.');
+    }
   },
 
   setManifest: async (manifest: ModuleManifest) => {
     if (!isCurrentUserAdmin()) return;
     set({ manifest });
-    await platformConfigService.saveManifest(manifest).catch(() => {});
+    try {
+      await platformConfigService.saveManifest(manifest);
+    } catch {
+      toast.error('Error al guardar', 'No se pudo guardar en la base de datos. El cambio se conserva localmente.');
+    }
   },
 
   updateModuleOrder: async (orderedIds: string[]) => {
@@ -204,13 +213,21 @@ export const useModuleStore = create<ModuleStoreState>((set, get) => ({
       }
     });
     set({ manifest: updated });
-    await platformConfigService.saveManifest(updated).catch(() => {});
+    try {
+      await platformConfigService.saveManifest(updated);
+    } catch {
+      toast.error('Error al guardar', 'No se pudo guardar el orden en la base de datos.');
+    }
   },
 
   setBranding: async (branding: PlatformBranding) => {
     if (!isCurrentUserAdmin()) return;
     set({ branding });
-    await platformConfigService.saveBranding(branding).catch(() => {});
+    try {
+      await platformConfigService.saveBranding(branding);
+    } catch {
+      toast.error('Error al guardar', 'No se pudo guardar el branding en la base de datos.');
+    }
   },
 
   // ========== ROLE ACTIONS (solo admin) ==========
@@ -220,7 +237,11 @@ export const useModuleStore = create<ModuleStoreState>((set, get) => ({
     const role: CustomRole = { ...data, id, isSystem: false };
     const roles = [...get().roles, role];
     set({ roles });
-    await platformConfigService.saveRoles(roles).catch(() => {});
+    try {
+      await platformConfigService.saveRoles(roles);
+    } catch {
+      toast.error('Error al guardar', 'No se pudo guardar el rol en la base de datos.');
+    }
   },
 
   updateRole: async (id, data) => {
@@ -229,7 +250,11 @@ export const useModuleStore = create<ModuleStoreState>((set, get) => ({
       r.id === id ? { ...r, ...data } : r
     );
     set({ roles });
-    await platformConfigService.saveRoles(roles).catch(() => {});
+    try {
+      await platformConfigService.saveRoles(roles);
+    } catch {
+      toast.error('Error al guardar', 'No se pudo guardar el rol en la base de datos.');
+    }
   },
 
   deleteRole: async (id) => {
@@ -242,17 +267,25 @@ export const useModuleStore = create<ModuleStoreState>((set, get) => ({
       customRoleIds: a.customRoleIds.filter((rid) => rid !== id),
     }));
     set({ roles, assignments });
-    await Promise.all([
-      platformConfigService.saveRoles(roles),
-      platformConfigService.saveAssignments(assignments),
-    ]).catch(() => {});
+    try {
+      await Promise.all([
+        platformConfigService.saveRoles(roles),
+        platformConfigService.saveAssignments(assignments),
+      ]);
+    } catch {
+      toast.error('Error al guardar', 'No se pudo guardar en la base de datos.');
+    }
   },
 
   resetRoles: async () => {
     if (!isCurrentUserAdmin()) return;
     const roles = DEFAULT_ROLES.map((r) => ({ ...r }));
     set({ roles });
-    await platformConfigService.saveRoles(roles).catch(() => {});
+    try {
+      await platformConfigService.saveRoles(roles);
+    } catch {
+      toast.error('Error al guardar', 'No se pudo guardar los roles en la base de datos.');
+    }
   },
 
   // ========== ASSIGNMENT ACTIONS (solo admin) ==========
@@ -261,14 +294,22 @@ export const useModuleStore = create<ModuleStoreState>((set, get) => ({
     const assignments = get().assignments.filter((a) => a.userEmail !== userEmail);
     assignments.push({ userEmail, userName, customRoleIds: roleIds });
     set({ assignments });
-    await platformConfigService.saveAssignments(assignments).catch(() => {});
+    try {
+      await platformConfigService.saveAssignments(assignments);
+    } catch {
+      toast.error('Error al guardar', 'No se pudo guardar las asignaciones en la base de datos.');
+    }
   },
 
   removeUserAssignment: async (userEmail) => {
     if (!isCurrentUserAdmin()) return;
     const assignments = get().assignments.filter((a) => a.userEmail !== userEmail);
     set({ assignments });
-    await platformConfigService.saveAssignments(assignments).catch(() => {});
+    try {
+      await platformConfigService.saveAssignments(assignments);
+    } catch {
+      toast.error('Error al guardar', 'No se pudo guardar las asignaciones en la base de datos.');
+    }
   },
 
   // ========== QUERIES (lectura, todos los usuarios) ==========

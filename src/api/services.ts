@@ -673,10 +673,15 @@ async function loadConfig<T>(key: string, fallback: T): Promise<T> {
 
 async function saveConfig<T>(key: string, data: T): Promise<void> {
   const json = JSON.stringify(data);
-  // Guardar en backend (requiere System Manager)
-  await frappeCall('frappe.client.set_default', { key, value: json });
-  // Guardar en caché local
+  // 1. Guardar en caché local PRIMERO (garantiza persistencia en recarga)
   localStorage.setItem(CACHE_PREFIX + key, json);
+  // 2. Guardar en backend (requiere System Manager) — si falla, al menos localStorage tiene la data
+  try {
+    await frappeCall('frappe.client.set_default', { key, value: json });
+  } catch (err) {
+    console.error(`[saveConfig] Error guardando "${key}" en backend:`, err);
+    throw err; // Propagar para que el caller pueda mostrar feedback
+  }
 }
 
 export const platformConfigService = {
