@@ -720,10 +720,19 @@ export async function downloadPayrollExcel(slips: SalarySlip[]): Promise<void> {
 // 5. PLANTILLA DE CARGA MASIVA DE EMPLEADOS
 // ============================================
 
+export interface DesignationWithHierarchy {
+  name: string;
+  level?: number;
+  levelLabel?: string;
+  parentDesignation?: string;
+  isExecutive?: boolean;
+}
+
 export interface BulkTemplateCatalogs {
   companies?: string[];
   departments?: string[];
   designations?: string[];
+  designationsWithHierarchy?: DesignationWithHierarchy[];
   branches?: string[];
   employmentTypes?: string[];
   employees?: { id: string; name: string }[];
@@ -1129,13 +1138,18 @@ export async function downloadPlantillaCargaMasiva(dynamicCatalogs?: BulkTemplat
     ['Parentesco', catalogos.parentesco],
   ];
 
-  // Catálogos dinámicos (de la BD, pueden estar vacíos)
+  // Catálogos dinámicos (de la BD, pueden estar vacíos) — excepto Puestos que van aparte con jerarquía
   const dynamicCatEntries: [string, string[]][] = [
     ['Empresas (del sistema)', catalogos.empresa ?? []],
     ['Departamentos (del sistema)', catalogos.departamento ?? []],
-    ['Puestos (del sistema)', catalogos.puesto ?? []],
     ['Sucursales (del sistema)', catalogos.sucursal ?? []],
   ].filter(([, vals]) => vals.length > 0) as [string, string[]][];
+
+  // Add flat puestos only if no hierarchy data is available
+  const hasHierarchy = dynamicCatalogs?.designationsWithHierarchy && dynamicCatalogs.designationsWithHierarchy.length > 0;
+  if (!hasHierarchy && (catalogos.puesto ?? []).length > 0) {
+    dynamicCatEntries.push(['Puestos (del sistema)', catalogos.puesto ?? []]);
+  }
 
   const allCatEntries = [...fixedCatEntries, ...dynamicCatEntries];
 
@@ -1162,6 +1176,60 @@ export async function downloadPlantillaCargaMasiva(dynamicCatalogs?: BulkTemplat
     }
     catR++; // Espacio entre catálogos
   });
+
+  // Puestos con jerarquía (tabla estructurada)
+  if (hasHierarchy) {
+    const desigs = dynamicCatalogs!.designationsWithHierarchy!;
+    // Sort by level
+    const sortedDesigs = [...desigs].sort((a, b) => (a.level ?? 99) - (b.level ?? 99));
+
+    const titleRow = wsCatVis.getRow(catR);
+    wsCatVis.mergeCells(catR, 1, catR, 4);
+    titleRow.getCell(1).value = 'Puestos — Jerarquía Organizacional';
+    titleRow.getCell(1).font = { name: 'Calibri', size: 11, bold: true, color: { argb: BRAND.headerText } };
+    titleRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.accent } };
+    titleRow.getCell(1).alignment = { horizontal: 'left', indent: 1 };
+    catR++;
+
+    // Header row
+    const hdrRow = wsCatVis.getRow(catR);
+    const hdrLabels = ['Puesto', 'Nivel', 'Reporta a', 'Ejecutivo'];
+    hdrLabels.forEach((label, i) => {
+      const cell = hdrRow.getCell(i + 1);
+      cell.value = label;
+      cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: BRAND.headerText } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '6B7280' } };
+    });
+    catR++;
+
+    const levelColors: Record<number, string> = {
+      1: 'FEE2E2', // red-100
+      2: 'F3E8FF', // purple-100
+      3: 'DBEAFE', // blue-100
+      4: 'CFFAFE', // cyan-100
+      5: 'DCFCE7', // green-100
+      6: 'F3F4F6', // gray-100
+    };
+
+    for (const d of sortedDesigs) {
+      const row = wsCatVis.getRow(catR);
+      const bgColor = levelColors[d.level ?? 5] || 'F3F4F6';
+      row.getCell(1).value = d.name;
+      row.getCell(1).font = { name: 'Calibri', size: 10, bold: d.isExecutive };
+      row.getCell(2).value = d.levelLabel || `Nivel ${d.level ?? '—'}`;
+      row.getCell(2).font = { name: 'Calibri', size: 9 };
+      row.getCell(3).value = d.parentDesignation || '—';
+      row.getCell(3).font = { name: 'Calibri', size: 9 };
+      row.getCell(4).value = d.isExecutive ? 'Sí' : '';
+      row.getCell(4).font = { name: 'Calibri', size: 9, bold: d.isExecutive, color: { argb: d.isExecutive ? 'DC2626' : '6B7280' } };
+      for (let c = 1; c <= 4; c++) {
+        row.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
+        row.getCell(c).border = { bottom: { style: 'hair', color: { argb: BRAND.border } } };
+      }
+      catR++;
+    }
+    catR++;
+  }
 
   // Empleados existentes (para referencia de reports_to)
   if (dynamicCatalogs?.employees && dynamicCatalogs.employees.length > 0) {

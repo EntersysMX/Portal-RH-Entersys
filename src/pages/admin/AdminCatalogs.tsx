@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus, Search, Pencil, Trash2, Database } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Plus, Search, Pencil, Trash2, Database, Crown, ArrowRight } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import ComboSelect from '@/components/ui/ComboSelect';
 import { toast } from '@/components/ui/Toast';
@@ -25,6 +25,8 @@ import {
   useUpdateEmploymentType,
   useDeleteEmploymentType,
 } from '@/hooks/useFrappe';
+import { platformConfigService, DESIGNATION_LEVELS } from '@/api/services';
+import type { DesignationHierarchyConfig, DesignationLevelInfo } from '@/api/services';
 import type { Department, Designation, Company, Branch, EmploymentType } from '@/types/frappe';
 
 type TabId = 'departments' | 'designations' | 'companies' | 'branches' | 'employment-types';
@@ -179,7 +181,7 @@ function DepartmentsTab({ search }: { search: string }) {
 }
 
 // ============================================
-// DESIGNATIONS TAB
+// DESIGNATIONS TAB (with hierarchy)
 // ============================================
 function DesignationsTab({ search }: { search: string }) {
   const { data, isLoading } = useDesignations();
@@ -190,30 +192,114 @@ function DesignationsTab({ search }: { search: string }) {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Designation | null>(null);
   const [form, setForm] = useState({ designation: '' });
+  const [hierarchyForm, setHierarchyForm] = useState<DesignationLevelInfo>({ level: 5, isExecutive: false });
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [hierarchy, setHierarchy] = useState<DesignationHierarchyConfig>({});
+  const [hierarchyLoaded, setHierarchyLoaded] = useState(false);
+
+  // Load hierarchy config from backend
+  const loadHierarchy = useCallback(async () => {
+    try {
+      const config = await platformConfigService.loadDesignationHierarchy({});
+      setHierarchy(config);
+    } catch { /* use empty */ }
+    setHierarchyLoaded(true);
+  }, []);
+
+  useEffect(() => { loadHierarchy(); }, [loadHierarchy]);
+
+  const saveHierarchy = async (updated: DesignationHierarchyConfig) => {
+    setHierarchy(updated);
+    try {
+      await platformConfigService.saveDesignationHierarchy(updated);
+    } catch {
+      toast.error('Error', 'No se pudo guardar la jerarquía');
+    }
+  };
+
+  const designationNames = (data ?? []).map((d) => d.designation || d.name);
+  const designationOptions = designationNames.map((n) => ({ value: n, label: n }));
 
   const filtered = (data ?? []).filter((d) =>
     (d.designation || d.name).toLowerCase().includes(search.toLowerCase())
   );
 
-  const openCreate = () => { setEditing(null); setForm({ designation: '' }); setShowModal(true); };
-  const openEdit = (d: Designation) => { setEditing(d); setForm({ designation: d.designation || d.name }); setShowModal(true); };
+  // Sort by level (lower = higher rank)
+  const sorted = [...filtered].sort((a, b) => {
+    const nameA = a.designation || a.name;
+    const nameB = b.designation || b.name;
+    const levelA = hierarchy[nameA]?.level ?? 99;
+    const levelB = hierarchy[nameB]?.level ?? 99;
+    return levelA - levelB;
+  });
+
+  const openCreate = () => {
+    setEditing(null);
+    setForm({ designation: '' });
+    setHierarchyForm({ level: 5, isExecutive: false });
+    setShowModal(true);
+  };
+  const openEdit = (d: Designation) => {
+    const name = d.designation || d.name;
+    setEditing(d);
+    setForm({ designation: name });
+    setHierarchyForm(hierarchy[name] ?? { level: 5, isExecutive: false });
+    setShowModal(true);
+  };
+
   const handleSave = async () => {
     try {
       if (editing) {
         await updateMut.mutateAsync({ name: editing.name, data: form });
+        // Save hierarchy for this designation
+        const updated = { ...hierarchy };
+        // If name changed, remove old entry
+        const oldName = editing.designation || editing.name;
+        if (oldName !== form.designation) delete updated[oldName];
+        updated[form.designation] = hierarchyForm;
+        await saveHierarchy(updated);
         toast.success('Actualizado', 'Puesto actualizado correctamente');
       } else {
         await createMut.mutateAsync(form as Partial<Designation>);
+        const updated = { ...hierarchy, [form.designation]: hierarchyForm };
+        await saveHierarchy(updated);
         toast.success('Creado', 'Puesto creado correctamente');
       }
       setShowModal(false);
     } catch { /* handled by hook */ }
   };
+
   const handleDelete = async () => {
     if (!deleteTarget) return;
-    try { await deleteMut.mutateAsync(deleteTarget); toast.success('Eliminado', 'Puesto eliminado'); setDeleteTarget(null); } catch { /* handled by hook */ }
+    try {
+      const desig = (data ?? []).find((d) => d.name === deleteTarget);
+      await deleteMut.mutateAsync(deleteTarget);
+      // Remove from hierarchy
+      if (desig) {
+        const name = desig.designation || desig.name;
+        const updated = { ...hierarchy };
+        delete updated[name];
+        await saveHierarchy(updated);
+      }
+      toast.success('Eliminado', 'Puesto eliminado');
+      setDeleteTarget(null);
+    } catch { /* handled by hook */ }
   };
+
+  const getLevelBadge = (name: string) => {
+    const info = hierarchy[name];
+    if (!info) return null;
+    const levelDef = DESIGNATION_LEVELS.find((l) => l.value === info.level);
+    if (!levelDef) return null;
+    return (
+      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${levelDef.color}`}>
+        {info.isExecutive && <Crown className="h-3 w-3" />}
+        {levelDef.label}
+      </span>
+    );
+  };
+
+  if (!hierarchyLoaded) return null;
 
   return (
     <>
@@ -221,18 +307,123 @@ function DesignationsTab({ search }: { search: string }) {
         <p className="text-sm text-gray-500">{filtered.length} puesto{filtered.length !== 1 ? 's' : ''}</p>
         <button onClick={openCreate} className="btn-primary"><Plus className="h-4 w-4" /> Nuevo</button>
       </div>
-      <CatalogTable isLoading={isLoading} headers={['Puesto']}
-        rows={filtered.map((d) => ({ key: d.name, cells: [d.designation || d.name], onEdit: () => openEdit(d), onDelete: () => setDeleteTarget(d.name) }))}
-        emptyMessage="No hay puestos registrados"
-      />
+
+      {/* Hierarchy legend */}
+      <div className="flex flex-wrap gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
+        <span className="text-xs font-medium text-gray-500 self-center">Niveles:</span>
+        {DESIGNATION_LEVELS.map((l) => (
+          <span key={l.value} className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${l.color}`}>
+            {l.value}. {l.label}
+          </span>
+        ))}
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-12">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-600 border-t-transparent" />
+        </div>
+      ) : sorted.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 py-12">
+          <Database className="h-10 w-10 text-gray-300" />
+          <p className="mt-3 text-sm text-gray-500">No hay puestos registrados</p>
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-gray-200">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Puesto</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Nivel</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Reporta a</th>
+                <th className="w-24 px-4 py-3 text-right text-xs font-semibold uppercase text-gray-500">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {sorted.map((d) => {
+                const name = d.designation || d.name;
+                const info = hierarchy[name];
+                return (
+                  <tr key={d.name} className="hover:bg-gray-50">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        {info?.isExecutive && <Crown className="h-4 w-4 text-amber-500" />}
+                        <span className="font-medium text-gray-700">{name}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">{getLevelBadge(name) || <span className="text-xs text-gray-400">Sin nivel</span>}</td>
+                    <td className="px-4 py-3">
+                      {info?.parentDesignation ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-gray-600">
+                          <ArrowRight className="h-3 w-3 text-gray-400" />
+                          {info.parentDesignation}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <button onClick={() => openEdit(d)} className="rounded p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600" title="Editar">
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button onClick={() => setDeleteTarget(d.name)} className="rounded p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600" title="Eliminar">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Create/Edit Modal */}
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editing ? 'Editar Puesto' : 'Nuevo Puesto'} footer={
         <><button onClick={() => setShowModal(false)} className="btn-secondary">Cancelar</button>
         <button onClick={handleSave} disabled={createMut.isPending || updateMut.isPending} className="btn-primary">
           {(createMut.isPending || updateMut.isPending) ? 'Guardando...' : 'Guardar'}
         </button></>
       }>
-        <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Nombre del Puesto *</label>
-        <input className="input" value={form.designation} onChange={(e) => setForm({ designation: e.target.value })} /></div>
+        <div className="space-y-4">
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">Nombre del Puesto *</label>
+            <input className="input" value={form.designation} onChange={(e) => setForm({ designation: e.target.value })} />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">Nivel Jerárquico</label>
+            <select
+              className="input"
+              value={hierarchyForm.level}
+              onChange={(e) => setHierarchyForm({ ...hierarchyForm, level: Number(e.target.value), isExecutive: Number(e.target.value) <= 2 })}
+            >
+              {DESIGNATION_LEVELS.map((l) => (
+                <option key={l.value} value={l.value}>{l.value}. {l.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <ComboSelect
+            label="Reporta a (puesto superior)"
+            options={designationOptions.filter((o) => o.value !== form.designation)}
+            value={hierarchyForm.parentDesignation || ''}
+            onChange={(v) => setHierarchyForm({ ...hierarchyForm, parentDesignation: v || undefined })}
+            placeholder="Ninguno (puesto de nivel más alto)"
+          />
+
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={hierarchyForm.isExecutive}
+              onChange={(e) => setHierarchyForm({ ...hierarchyForm, isExecutive: e.target.checked })}
+              className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+            />
+            <span className="text-sm text-gray-700">Es puesto ejecutivo</span>
+            <span className="text-xs text-gray-400">(no requiere &quot;Reporta a&quot; en empleados)</span>
+          </label>
+        </div>
       </Modal>
       <ConfirmDeleteModal isOpen={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={handleDelete} isPending={deleteMut.isPending} itemLabel="puesto" />
     </>

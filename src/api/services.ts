@@ -737,4 +737,32 @@ export const platformConfigService = {
 
   saveBranding: (data: { companyLogoUrl: string | null; companyName: string | null }) =>
     saveConfig('enterhr_branding', data),
+
+  loadDesignationHierarchy: (fallback: DesignationHierarchyConfig) =>
+    loadConfig<DesignationHierarchyConfig>('enterhr_designation_hierarchy', fallback),
+
+  saveDesignationHierarchy: (data: DesignationHierarchyConfig) =>
+    saveConfig('enterhr_designation_hierarchy', data),
 };
+
+// ============================================
+// DESIGNATION HIERARCHY CONFIG
+// Metadata de jerarquía almacenada en plataforma
+// (no en el doctype Designation de Frappe)
+// ============================================
+export interface DesignationLevelInfo {
+  level: number;            // 1=C-Suite, 2=Director, 3=Gerente, 4=Coordinador, 5=Especialista, 6=Operativo
+  parentDesignation?: string;
+  isExecutive: boolean;
+}
+
+export type DesignationHierarchyConfig = Record<string, DesignationLevelInfo>;
+
+export const DESIGNATION_LEVELS: { value: number; label: string; color: string }[] = [
+  { value: 1, label: 'C-Suite / Ejecutivo', color: 'bg-red-100 text-red-700' },
+  { value: 2, label: 'Director / VP', color: 'bg-purple-100 text-purple-700' },
+  { value: 3, label: 'Gerente / Manager', color: 'bg-blue-100 text-blue-700' },
+  { value: 4, label: 'Coordinador / Supervisor', color: 'bg-cyan-100 text-cyan-700' },
+  { value: 5, label: 'Especialista / Analista', color: 'bg-green-100 text-green-700' },
+  { value: 6, label: 'Asistente / Operativo', color: 'bg-gray-100 text-gray-700' },
+];

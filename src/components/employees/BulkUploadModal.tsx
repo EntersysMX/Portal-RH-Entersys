@@ -7,7 +7,8 @@ import Modal from '@/components/ui/Modal';
 import { parseUploadedExcel, toEmployeeCreateData } from '@/lib/excel/bulkUploadParser';
 import { downloadPlantillaCargaMasiva } from '@/lib/excel/excelGenerator';
 import type { BulkTemplateCatalogs } from '@/lib/excel/excelGenerator';
-import { employeeService, catalogService, departmentService, designationService, companyService, branchService, employmentTypeService } from '@/api/services';
+import { employeeService, catalogService, departmentService, designationService, companyService, branchService, employmentTypeService, platformConfigService, DESIGNATION_LEVELS } from '@/api/services';
+import type { DesignationHierarchyConfig } from '@/api/services';
 import { ensureSpanishCatalogs } from '@/lib/catalogs/spanishCatalogs';
 import { parseFrappeError } from '@/lib/frappeErrors';
 import type { ParseResult, ParsedRow } from '@/lib/excel/bulkUploadParser';
@@ -50,20 +51,36 @@ export default function BulkUploadModal({ isOpen, onClose, onComplete }: Props) 
       // Ensure Spanish catalog entries exist in Frappe DB
       await ensureSpanishCatalogs();
 
-      // Load all catalogs in parallel
-      const [companies, departments, designations, branches, empTypes, employees] = await Promise.all([
+      // Load all catalogs + hierarchy in parallel
+      const [companies, departments, designations, branches, empTypes, employees, hierarchy] = await Promise.all([
         companyService.list().catch(() => []),
         departmentService.list().catch(() => []),
         designationService.list().catch(() => []),
         branchService.list().catch(() => []),
         employmentTypeService.list().catch(() => []),
         employeeService.list({ limit: 5000 }).catch(() => []),
+        platformConfigService.loadDesignationHierarchy({}).catch(() => ({} as DesignationHierarchyConfig)),
       ]);
+
+      // Build designations with hierarchy info
+      const designationNames = designations.map((d) => d.name);
+      const designationsWithHierarchy = designationNames.map((name) => {
+        const info = hierarchy[name];
+        const levelDef = info ? DESIGNATION_LEVELS.find((l) => l.value === info.level) : undefined;
+        return {
+          name,
+          level: info?.level,
+          levelLabel: levelDef?.label,
+          parentDesignation: info?.parentDesignation,
+          isExecutive: info?.isExecutive,
+        };
+      });
 
       const catalogs: BulkTemplateCatalogs = {
         companies: companies.map((c) => c.name),
         departments: departments.map((d) => d.name),
-        designations: designations.map((d) => d.name),
+        designations: designationNames,
+        designationsWithHierarchy,
         branches: branches.map((b) => b.name),
         employmentTypes: empTypes.map((e) => e.name),
         employees: employees.map((e) => ({ id: e.name, name: e.employee_name })),
