@@ -118,7 +118,7 @@ function DepartmentsTab({ search }: { search: string }) {
   };
   const openEdit = (d: Department) => {
     setEditing(d);
-    setForm({ department_name: d.department_name, company: d.company || '' });
+    setForm({ department_name: d.department_name || d.name, company: d.company || '' });
     setShowModal(true);
   };
   const handleSave = async () => {
@@ -197,7 +197,7 @@ function DesignationsTab({ search }: { search: string }) {
   );
 
   const openCreate = () => { setEditing(null); setForm({ designation: '' }); setShowModal(true); };
-  const openEdit = (d: Designation) => { setEditing(d); setForm({ designation: d.designation }); setShowModal(true); };
+  const openEdit = (d: Designation) => { setEditing(d); setForm({ designation: d.designation || d.name }); setShowModal(true); };
   const handleSave = async () => {
     try {
       if (editing) {
@@ -258,7 +258,7 @@ function CompaniesTab({ search }: { search: string }) {
   );
 
   const openCreate = () => { setEditing(null); setForm({ company_name: '', abbr: '', default_currency: 'MXN', country: 'Mexico' }); setShowModal(true); };
-  const openEdit = (c: Company) => { setEditing(c); setForm({ company_name: c.company_name, abbr: c.abbr, default_currency: c.default_currency, country: c.country }); setShowModal(true); };
+  const openEdit = (c: Company) => { setEditing(c); setForm({ company_name: c.company_name || c.name, abbr: c.abbr || '', default_currency: c.default_currency || 'MXN', country: c.country || 'Mexico' }); setShowModal(true); };
   const handleSave = async () => {
     try {
       if (editing) {
@@ -335,7 +335,7 @@ function BranchesTab({ search }: { search: string }) {
   );
 
   const openCreate = () => { setEditing(null); setForm({ branch: '' }); setShowModal(true); };
-  const openEdit = (b: Branch) => { setEditing(b); setForm({ branch: b.branch }); setShowModal(true); };
+  const openEdit = (b: Branch) => { setEditing(b); setForm({ branch: b.branch || b.name }); setShowModal(true); };
   const handleSave = async () => {
     try {
       if (editing) {
