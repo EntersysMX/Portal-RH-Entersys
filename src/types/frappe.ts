@@ -325,6 +325,19 @@ export interface EmployeeFullProfile {
   vacation_balance: number;
 }
 
+export interface Company {
+  name: string;
+  company_name: string;
+  abbr: string;
+  default_currency: string;
+  country: string;
+}
+
+export interface Branch {
+  name: string;
+  branch: string;
+}
+
 export interface Notice {
   name: string;
   title: string;

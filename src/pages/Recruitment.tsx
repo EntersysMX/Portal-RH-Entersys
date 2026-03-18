@@ -3,7 +3,9 @@ import { Plus, Briefcase, Users, Clock, CheckCircle2 } from 'lucide-react';
 import StatsCard from '@/components/ui/StatsCard';
 import StatusBadge from '@/components/ui/StatusBadge';
 import Modal from '@/components/ui/Modal';
-import { useJobOpenings, useJobApplicants, useCreateJobOpening } from '@/hooks/useFrappe';
+import ComboSelect from '@/components/ui/ComboSelect';
+import { useJobOpenings, useJobApplicants, useCreateJobOpening, useDepartments, useDesignations, useCompanies } from '@/hooks/useFrappe';
+import { catalogService } from '@/api/services';
 import type { JobOpening, JobApplicant } from '@/types/frappe';
 
 export default function Recruitment() {
@@ -20,13 +22,60 @@ export default function Recruitment() {
 
   const { data: openings, isLoading: loadingOpenings } = useJobOpenings();
   const { data: applicants, isLoading: loadingApplicants } = useJobApplicants();
+  const { data: departments } = useDepartments();
+  const { data: designations } = useDesignations();
+  const { data: companies } = useCompanies();
   const createMutation = useCreateJobOpening();
+
+  const departmentOptions = (departments ?? []).map((d) => ({
+    value: d.name,
+    label: d.department_name || d.name,
+  }));
+  const designationOptions = (designations ?? []).map((d) => ({
+    value: d.name,
+    label: d.designation || d.name,
+  }));
+  const companyOptions = (companies ?? []).map((c) => ({
+    value: c.name,
+    label: c.company_name || c.name,
+  }));
 
   const openCount = openings?.filter((o) => o.status === 'Open').length ?? 0;
   const totalApplicants = applicants?.length ?? 0;
   const acceptedCount = applicants?.filter((a) => a.status === 'Accepted').length ?? 0;
 
   const handleCreate = async () => {
+    // Pre-create catalog entries that don't exist
+    const promises: Promise<void>[] = [];
+
+    if (newOpening.company && !companyOptions.some((o) => o.value === newOpening.company)) {
+      promises.push(
+        catalogService.ensureExists('Company', {
+          company_name: newOpening.company,
+          abbr: newOpening.company.substring(0, 5).toUpperCase(),
+          default_currency: 'MXN',
+          country: 'Mexico',
+        })
+      );
+    }
+    if (newOpening.designation && !designationOptions.some((o) => o.value === newOpening.designation)) {
+      promises.push(
+        catalogService.ensureExists('Designation', { designation: newOpening.designation })
+      );
+    }
+    if (newOpening.department && !departmentOptions.some((o) => o.value === newOpening.department)) {
+      promises.push(
+        catalogService.ensureExists('Department', {
+          department_name: newOpening.department,
+          company: newOpening.company || undefined,
+        })
+      );
+    }
+
+    if (promises.length > 0) {
+      await Promise.all(promises);
+    }
+
     await createMutation.mutateAsync(newOpening);
     setShowNewModal(false);
     setNewOpening({ job_title: '', designation: '', department: '', company: '', description: '', location: '' });
@@ -195,12 +244,31 @@ export default function Recruitment() {
               <input className="input" value={newOpening.job_title} onChange={(e) => setNewOpening({ ...newOpening, job_title: e.target.value })} />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Designación</label>
-              <input className="input" value={newOpening.designation} onChange={(e) => setNewOpening({ ...newOpening, designation: e.target.value })} />
+              <ComboSelect
+                label="Designación"
+                options={designationOptions}
+                value={newOpening.designation}
+                onChange={(val) => setNewOpening({ ...newOpening, designation: val })}
+                placeholder="Seleccionar o crear puesto"
+              />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Departamento</label>
-              <input className="input" value={newOpening.department} onChange={(e) => setNewOpening({ ...newOpening, department: e.target.value })} />
+              <ComboSelect
+                label="Departamento"
+                options={departmentOptions}
+                value={newOpening.department}
+                onChange={(val) => setNewOpening({ ...newOpening, department: val })}
+                placeholder="Seleccionar o crear departamento"
+              />
+            </div>
+            <div>
+              <ComboSelect
+                label="Empresa"
+                options={companyOptions}
+                value={newOpening.company}
+                onChange={(val) => setNewOpening({ ...newOpening, company: val })}
+                placeholder="Seleccionar o crear empresa"
+              />
             </div>
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700">Ubicación</label>

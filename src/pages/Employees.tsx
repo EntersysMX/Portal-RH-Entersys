@@ -7,7 +7,9 @@ import StatusBadge from '@/components/ui/StatusBadge';
 import Modal from '@/components/ui/Modal';
 import BulkUploadModal from '@/components/employees/BulkUploadModal';
 import RoleGuard from '@/components/auth/RoleGuard';
-import { useEmployees, useCreateEmployee, useDepartments } from '@/hooks/useFrappe';
+import ComboSelect from '@/components/ui/ComboSelect';
+import { useEmployees, useCreateEmployee, useDepartments, useDesignations, useCompanies } from '@/hooks/useFrappe';
+import { catalogService } from '@/api/services';
 import type { Employee } from '@/types/frappe';
 
 export default function Employees() {
@@ -41,7 +43,22 @@ export default function Employees() {
     (page - 1) * 20
   );
   const { data: departments } = useDepartments();
+  const { data: designations } = useDesignations();
+  const { data: companies } = useCompanies();
   const createMutation = useCreateEmployee();
+
+  const departmentOptions = (departments ?? []).map((d) => ({
+    value: d.name,
+    label: d.department_name || d.name,
+  }));
+  const designationOptions = (designations ?? []).map((d) => ({
+    value: d.name,
+    label: d.designation || d.name,
+  }));
+  const companyOptions = (companies ?? []).map((c) => ({
+    value: c.name,
+    label: c.company_name || c.name,
+  }));
 
   const columns: Column<Employee>[] = [
     {
@@ -77,6 +94,37 @@ export default function Employees() {
   ];
 
   const handleCreate = async () => {
+    // Pre-create catalog entries that don't exist
+    const promises: Promise<void>[] = [];
+
+    if (newEmployee.company && !companyOptions.some((o) => o.value === newEmployee.company)) {
+      promises.push(
+        catalogService.ensureExists('Company', {
+          company_name: newEmployee.company,
+          abbr: newEmployee.company.substring(0, 5).toUpperCase(),
+          default_currency: 'MXN',
+          country: 'Mexico',
+        })
+      );
+    }
+    if (newEmployee.designation && !designationOptions.some((o) => o.value === newEmployee.designation)) {
+      promises.push(
+        catalogService.ensureExists('Designation', { designation: newEmployee.designation })
+      );
+    }
+    if (newEmployee.department && !departmentOptions.some((o) => o.value === newEmployee.department)) {
+      promises.push(
+        catalogService.ensureExists('Department', {
+          department_name: newEmployee.department,
+          company: newEmployee.company || undefined,
+        })
+      );
+    }
+
+    if (promises.length > 0) {
+      await Promise.all(promises);
+    }
+
     await createMutation.mutateAsync(newEmployee);
     setShowNewModal(false);
     setNewEmployee({
@@ -245,26 +293,21 @@ export default function Employees() {
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Departamento</label>
-            <select
-              className="input"
+            <ComboSelect
+              label="Departamento"
+              options={departmentOptions}
               value={newEmployee.department}
-              onChange={(e) => setNewEmployee({ ...newEmployee, department: e.target.value })}
-            >
-              <option value="">Seleccionar</option>
-              {departments?.map((d) => (
-                <option key={d.name} value={d.name}>
-                  {d.department_name || d.name}
-                </option>
-              ))}
-            </select>
+              onChange={(val) => setNewEmployee({ ...newEmployee, department: val })}
+              placeholder="Seleccionar o crear departamento"
+            />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Puesto</label>
-            <input
-              className="input"
+            <ComboSelect
+              label="Puesto"
+              options={designationOptions}
               value={newEmployee.designation}
-              onChange={(e) => setNewEmployee({ ...newEmployee, designation: e.target.value })}
+              onChange={(val) => setNewEmployee({ ...newEmployee, designation: val })}
+              placeholder="Seleccionar o crear puesto"
             />
           </div>
           <div>
@@ -279,12 +322,12 @@ export default function Employees() {
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Empresa</label>
-            <input
-              className="input"
+            <ComboSelect
+              label="Empresa"
+              options={companyOptions}
               value={newEmployee.company}
-              onChange={(e) => setNewEmployee({ ...newEmployee, company: e.target.value })}
-              placeholder="Nombre de tu empresa"
+              onChange={(val) => setNewEmployee({ ...newEmployee, company: val })}
+              placeholder="Seleccionar o crear empresa"
             />
           </div>
         </div>

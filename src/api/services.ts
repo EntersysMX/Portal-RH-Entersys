@@ -11,6 +11,8 @@ import type {
   Employee,
   Department,
   Designation,
+  Company,
+  Branch,
   LeaveApplication,
   Attendance,
   JobOpening,
@@ -92,6 +94,57 @@ export const designationService = {
       fields: ['*'],
       limit_page_length: 100,
     }),
+
+  create: (data: Partial<Designation>) =>
+    frappeCreateDoc<Designation>('Designation', data),
+};
+
+// ============================================
+// COMPANY SERVICE
+// ============================================
+export const companyService = {
+  list: () =>
+    frappeGetList<Company>({
+      doctype: 'Company',
+      fields: ['*'],
+      limit_page_length: 100,
+    }),
+
+  create: (data: Partial<Company>) =>
+    frappeCreateDoc<Company>('Company', data),
+};
+
+// ============================================
+// BRANCH SERVICE
+// ============================================
+export const branchService = {
+  list: () =>
+    frappeGetList<Branch>({
+      doctype: 'Branch',
+      fields: ['*'],
+      limit_page_length: 100,
+    }),
+
+  create: (data: Partial<Branch>) =>
+    frappeCreateDoc<Branch>('Branch', data),
+};
+
+// ============================================
+// CATALOG SERVICE - Ensure catalog entries exist
+// ============================================
+export const catalogService = {
+  ensureExists: async (doctype: string, data: Record<string, unknown>): Promise<void> => {
+    try {
+      await frappeCreateDoc(doctype, data);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      // Ignore if already exists (DuplicateEntryError / already exists)
+      if (msg.includes('DuplicateEntryError') || msg.includes('already exists') || msg.includes('Duplicate')) {
+        return;
+      }
+      throw err;
+    }
+  },
 };
 
 // ============================================

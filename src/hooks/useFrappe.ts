@@ -2,6 +2,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   employeeService,
   departmentService,
+  designationService,
+  companyService,
+  branchService,
+  catalogService,
   leaveService,
   attendanceService,
   recruitmentService,
@@ -79,6 +83,56 @@ export function useDepartments() {
     queryKey: ['departments'],
     queryFn: departmentService.list,
     staleTime: 300_000,
+  });
+}
+
+// ============================================
+// DESIGNATIONS
+// ============================================
+export function useDesignations() {
+  return useQuery({
+    queryKey: ['designations'],
+    queryFn: designationService.list,
+    staleTime: 300_000,
+  });
+}
+
+// ============================================
+// COMPANIES
+// ============================================
+export function useCompanies() {
+  return useQuery({
+    queryKey: ['companies'],
+    queryFn: companyService.list,
+    staleTime: 300_000,
+  });
+}
+
+// ============================================
+// BRANCHES
+// ============================================
+export function useBranches() {
+  return useQuery({
+    queryKey: ['branches'],
+    queryFn: branchService.list,
+    staleTime: 300_000,
+  });
+}
+
+// ============================================
+// CATALOG ENSURE EXISTS
+// ============================================
+export function useEnsureCatalog() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ doctype, data }: { doctype: string; data: Record<string, unknown> }) =>
+      catalogService.ensureExists(doctype, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['departments'] });
+      qc.invalidateQueries({ queryKey: ['designations'] });
+      qc.invalidateQueries({ queryKey: ['companies'] });
+      qc.invalidateQueries({ queryKey: ['branches'] });
+    },
   });
 }
 

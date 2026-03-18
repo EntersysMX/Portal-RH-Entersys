@@ -6,7 +6,7 @@ import {
 import Modal from '@/components/ui/Modal';
 import { parseUploadedExcel, toEmployeeCreateData } from '@/lib/excel/bulkUploadParser';
 import { downloadPlantillaCargaMasiva } from '@/lib/excel/excelGenerator';
-import { employeeService } from '@/api/services';
+import { employeeService, catalogService } from '@/api/services';
 import type { ParseResult, ParsedRow } from '@/lib/excel/bulkUploadParser';
 
 interface Props {
@@ -83,6 +83,64 @@ export default function BulkUploadModal({ isOpen, onClose, onComplete }: Props) 
 
     setStep('importing');
     setImportProgress({ current: 0, total: validRows.length, errors: [] });
+
+    // Pre-create unique catalog entries
+    const uniqueCompanies = new Set<string>();
+    const uniqueDesignations = new Set<string>();
+    const uniqueDepartments = new Set<string>();
+    const uniqueBranches = new Set<string>();
+    // Track company per department for the Department doctype
+    const deptCompanyMap = new Map<string, string>();
+
+    for (const row of validRows) {
+      const emp = row.employee;
+      if (emp.company) uniqueCompanies.add(emp.company);
+      if (emp.designation) uniqueDesignations.add(emp.designation);
+      if (emp.department) {
+        uniqueDepartments.add(emp.department);
+        if (emp.company) deptCompanyMap.set(emp.department, emp.company);
+      }
+      if (emp.branch) uniqueBranches.add(emp.branch);
+    }
+
+    try {
+      const catalogPromises: Promise<void>[] = [];
+      for (const company of uniqueCompanies) {
+        catalogPromises.push(
+          catalogService.ensureExists('Company', {
+            company_name: company,
+            abbr: company.substring(0, 5).toUpperCase(),
+            default_currency: 'MXN',
+            country: 'Mexico',
+          })
+        );
+      }
+      for (const designation of uniqueDesignations) {
+        catalogPromises.push(
+          catalogService.ensureExists('Designation', { designation })
+        );
+      }
+      for (const branch of uniqueBranches) {
+        catalogPromises.push(
+          catalogService.ensureExists('Branch', { branch })
+        );
+      }
+      await Promise.all(catalogPromises);
+
+      // Departments depend on Company, so create after companies
+      const deptPromises: Promise<void>[] = [];
+      for (const dept of uniqueDepartments) {
+        deptPromises.push(
+          catalogService.ensureExists('Department', {
+            department_name: dept,
+            company: deptCompanyMap.get(dept) || undefined,
+          })
+        );
+      }
+      await Promise.all(deptPromises);
+    } catch {
+      // If catalog creation fails, continue with import anyway
+    }
 
     let created = 0;
     let failed = 0;
