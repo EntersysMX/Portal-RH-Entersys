@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { User, Mail, Phone, Building2, Briefcase, Calendar, MapPin, Save, ExternalLink, Shield } from 'lucide-react';
 import { useMyEmployee, useUpdateMyProfile } from '@/hooks/useFrappe';
+import ErrorState from '@/components/ui/ErrorState';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from '@/components/ui/Toast';
 
@@ -18,7 +19,7 @@ interface EditableFields {
 
 export default function MyProfile() {
   const user = useAuthStore((s) => s.user);
-  const { data: employee, isLoading } = useMyEmployee();
+  const { data: employee, isLoading, isError, refetch } = useMyEmployee();
   const updateMutation = useUpdateMyProfile();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<EditableFields>({
@@ -82,6 +83,10 @@ export default function MyProfile() {
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-600 border-t-transparent" />
       </div>
     );
+  }
+
+  if (isError) {
+    return <ErrorState onRetry={refetch} message="No se pudo cargar tu perfil." />;
   }
 
   const emp = employee;

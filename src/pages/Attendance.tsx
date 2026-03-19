@@ -8,7 +8,7 @@ import type { Attendance } from '@/types/frappe';
 
 export default function AttendancePage() {
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
-  const { data: attendanceData, isLoading } = useAttendance(
+  const { data: attendanceData, isLoading, isError, refetch } = useAttendance(
     { attendance_date: dateFilter },
     100
   );
@@ -84,6 +84,8 @@ export default function AttendancePage() {
         columns={columns}
         data={attendanceData ?? []}
         isLoading={isLoading}
+        isError={isError}
+        onRetry={refetch}
         emptyMessage="No hay registros de asistencia para esta fecha"
       />
     </div>

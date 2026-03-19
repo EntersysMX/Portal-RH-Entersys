@@ -11,7 +11,7 @@ import { toast } from '@/components/ui/Toast';
 import type { SalarySlip } from '@/types/frappe';
 
 export default function Payroll() {
-  const { data: slips, isLoading } = useSalarySlips();
+  const { data: slips, isLoading, isError, refetch } = useSalarySlips();
   const [selectedSlip, setSelectedSlip] = useState<SalarySlip | null>(null);
 
   const totalGross = slips?.reduce((sum, s) => sum + (s.gross_pay ?? 0), 0) ?? 0;
@@ -123,6 +123,8 @@ export default function Payroll() {
         columns={columns}
         data={slips ?? []}
         isLoading={isLoading}
+        isError={isError}
+        onRetry={refetch}
         emptyMessage="No hay recibos de nómina. Configura la nómina desde el módulo de Nómina."
       />
 

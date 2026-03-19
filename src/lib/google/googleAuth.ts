@@ -44,9 +44,12 @@ const SCOPES = [
   'https://www.googleapis.com/auth/spreadsheets.readonly',
 ].join(' ');
 
+const SCRIPT_TIMEOUT_MS = 15_000;
+const TOKEN_TIMEOUT_MS = 60_000;
+
 /**
  * Carga dinamica del script de Google Identity Services.
- * Solo se agrega al DOM una vez.
+ * Solo se agrega al DOM una vez. Timeout de 15s para evitar bloqueos.
  */
 export function loadGoogleScript(): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -55,9 +58,17 @@ export function loadGoogleScript(): Promise<void> {
       return;
     }
 
+    const timer = setTimeout(() => {
+      reject(new Error('Timeout al cargar el script de Google Identity Services (15s)'));
+    }, SCRIPT_TIMEOUT_MS);
+
+    const done = () => { clearTimeout(timer); resolve(); };
+    const fail = () => { clearTimeout(timer); reject(new Error('No se pudo cargar el script de Google Identity Services')); };
+
     const existing = document.querySelector(`script[src="${GIS_SCRIPT_URL}"]`);
     if (existing) {
-      existing.addEventListener('load', () => resolve());
+      existing.addEventListener('load', done);
+      existing.addEventListener('error', fail);
       return;
     }
 
@@ -65,14 +76,15 @@ export function loadGoogleScript(): Promise<void> {
     script.src = GIS_SCRIPT_URL;
     script.async = true;
     script.defer = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error('No se pudo cargar el script de Google Identity Services'));
+    script.onload = done;
+    script.onerror = fail;
     document.head.appendChild(script);
   });
 }
 
 /**
  * Inicia flujo OAuth2 popup para obtener access token.
+ * Timeout de 60s para evitar promesas que nunca resuelven si el popup se cierra.
  */
 export function requestAccessToken(clientId: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -81,10 +93,21 @@ export function requestAccessToken(clientId: string): Promise<string> {
       return;
     }
 
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        reject(new Error('Timeout de autenticación con Google (60s). Intenta de nuevo.'));
+      }
+    }, TOKEN_TIMEOUT_MS);
+
     const client = window.google.accounts.oauth2.initTokenClient({
       client_id: clientId,
       scope: SCOPES,
       callback: (response) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
         if (response.error) {
           reject(new Error(response.error_description || response.error));
           return;
@@ -96,6 +119,9 @@ export function requestAccessToken(clientId: string): Promise<string> {
         resolve(response.access_token);
       },
       error_callback: (error) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
         reject(new Error(error.message || 'Error de autenticacion con Google'));
       },
     });

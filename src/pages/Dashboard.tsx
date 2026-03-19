@@ -29,6 +29,7 @@ import {
   Cell,
 } from 'recharts';
 import StatsCard from '@/components/ui/StatsCard';
+import ErrorState from '@/components/ui/ErrorState';
 import { useDashboardStats, useNotices, useSalarySlips } from '@/hooks/useFrappe';
 import { downloadPayrollSummaryPdf } from '@/lib/pdf/pdfGenerator';
 import { toast } from '@/components/ui/Toast';
@@ -55,7 +56,7 @@ const NOTICE_COLORS: Record<string, string> = {
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { data: stats } = useDashboardStats();
+  const { data: stats, isError: statsError, refetch: refetchStats } = useDashboardStats();
   const { data: notices } = useNotices(3);
   const { data: slips } = useSalarySlips();
 
@@ -75,6 +76,8 @@ export default function Dashboard() {
           Resumen general de Recursos Humanos
         </p>
       </div>
+
+      {statsError && <ErrorState onRetry={refetchStats} compact />}
 
       {/* Stats Cards - Row 1 */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">

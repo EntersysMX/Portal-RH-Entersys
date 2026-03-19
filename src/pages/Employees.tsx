@@ -44,7 +44,7 @@ export default function Employees() {
   if (deptFilter) filters.department = deptFilter;
   if (search) filters.employee_name = ['like', `%${search}%`];
 
-  const { data: employees, isLoading } = useEmployees(
+  const { data: employees, isLoading, isError, refetch } = useEmployees(
     Object.keys(filters).length ? filters : undefined,
     20,
     (page - 1) * 20
@@ -299,6 +299,8 @@ export default function Employees() {
         columns={columns}
         data={employees ?? []}
         isLoading={isLoading}
+        isError={isError}
+        onRetry={refetch}
         onRowClick={(emp) => navigate(`/employees/${emp.name}`)}
         page={page}
         pageSize={20}

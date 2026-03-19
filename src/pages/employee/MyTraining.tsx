@@ -1,9 +1,10 @@
 import { GraduationCap, Calendar, User, Clock } from 'lucide-react';
 import { useTrainingEvents } from '@/hooks/useFrappe';
 import StatusBadge from '@/components/ui/StatusBadge';
+import ErrorState from '@/components/ui/ErrorState';
 
 export default function MyTraining() {
-  const { data: events, isLoading } = useTrainingEvents();
+  const { data: events, isLoading, isError, refetch } = useTrainingEvents();
 
   // Categorizar eventos
   const upcoming = events?.filter((e) => e.status === 'Scheduled') ?? [];
@@ -37,6 +38,8 @@ export default function MyTraining() {
         <div className="flex h-48 items-center justify-center">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-600 border-t-transparent" />
         </div>
+      ) : isError ? (
+        <ErrorState onRetry={refetch} compact />
       ) : events && events.length > 0 ? (
         <>
           {/* Upcoming */}

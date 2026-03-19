@@ -1,8 +1,10 @@
 import { CalendarCheck, DollarSign, GraduationCap, Clock, FileText, TrendingUp, Bell, Info, AlertTriangle, CheckCircle, AlertCircle } from 'lucide-react';
 import { clsx } from 'clsx';
 import StatsCard from '@/components/ui/StatsCard';
+import ErrorState from '@/components/ui/ErrorState';
+import PlayerCard from '@/components/employee/PlayerCard';
 import { useAuthStore } from '@/store/authStore';
-import { useMySalarySlips, useMyAttendance, useMyLeaves, useNotices } from '@/hooks/useFrappe';
+import { useMySalarySlips, useMyAttendance, useMyLeaves, useMyEmployee, useMyAppraisals, useTrainingEvents, useNotices } from '@/hooks/useFrappe';
 
 const NOTICE_ICONS: Record<string, React.ComponentType<{className?: string}>> = {
   info: Info,
@@ -20,10 +22,16 @@ const NOTICE_COLORS: Record<string, string> = {
 
 export default function EmployeeDashboard() {
   const user = useAuthStore((s) => s.user);
-  const { data: salarySlips } = useMySalarySlips(5);
-  const { data: attendance } = useMyAttendance(undefined, 30);
-  const { data: leaves } = useMyLeaves(undefined, 10);
-  const { data: notices } = useNotices(3);
+  const { data: myEmployee } = useMyEmployee();
+  const { data: myAppraisals } = useMyAppraisals();
+  const { data: trainingEvents } = useTrainingEvents();
+  const { data: salarySlips, isError: slipsError, refetch: refetchSlips } = useMySalarySlips(5);
+  const { data: attendance, isError: attError, refetch: refetchAtt } = useMyAttendance(undefined, 30);
+  const { data: leaves, isError: leavesError, refetch: refetchLeaves } = useMyLeaves(undefined, 10);
+  const { data: notices, isError: noticesError, refetch: refetchNotices } = useNotices(3);
+
+  const hasAnyError = slipsError || attError || leavesError || noticesError;
+  const retryAll = () => { refetchSlips(); refetchAtt(); refetchLeaves(); refetchNotices(); };
 
   // Calcular stats
   const lastSlip = salarySlips?.[0];
@@ -32,6 +40,12 @@ export default function EmployeeDashboard() {
   const pendingLeaves = leaves?.filter((l) => l.status === 'Open').length ?? 0;
   const approvedLeaves = leaves?.filter((l) => l.status === 'Approved').length ?? 0;
   const recentNotices = (notices || []).filter((n) => n.status === 'Active').slice(0, 3);
+
+  // PlayerCard data
+  const attendanceRate = totalAttendance > 0 ? Math.round((presentDays / totalAttendance) * 100) : 0;
+  const myTrainings = (trainingEvents ?? []).filter(
+    (t) => t.status === 'Completed' && t.employees?.some((e) => e.employee === myEmployee?.name)
+  );
 
   return (
     <div className="space-y-6">
@@ -44,6 +58,18 @@ export default function EmployeeDashboard() {
           Portal de empleado &mdash; {user?.employee_id || 'Sin ID asignado'}
         </p>
       </div>
+
+      {hasAnyError && <ErrorState onRetry={retryAll} compact />}
+
+      {/* Player Card */}
+      {myEmployee && (
+        <PlayerCard
+          employee={myEmployee}
+          appraisals={myAppraisals ?? []}
+          attendanceRate={attendanceRate}
+          trainingCompleted={myTrainings.length}
+        />
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

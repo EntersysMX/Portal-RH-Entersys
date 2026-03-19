@@ -1,9 +1,9 @@
 import { Building2, ChevronRight } from 'lucide-react';
-import { useDepartments } from '@/hooks/useFrappe';
-import { useMyEmployee } from '@/hooks/useFrappe';
+import { useDepartments, useMyEmployee } from '@/hooks/useFrappe';
+import ErrorState from '@/components/ui/ErrorState';
 
 export default function MyOrganization() {
-  const { data: departments, isLoading } = useDepartments();
+  const { data: departments, isLoading, isError, refetch } = useDepartments();
   const { data: myEmployee } = useMyEmployee();
 
   // Agrupar departamentos por padre
@@ -48,6 +48,8 @@ export default function MyOrganization() {
         <div className="flex h-48 items-center justify-center">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-600 border-t-transparent" />
         </div>
+      ) : isError ? (
+        <ErrorState onRetry={refetch} compact />
       ) : departments && departments.length > 0 ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {rootDepts.map((dept) => {

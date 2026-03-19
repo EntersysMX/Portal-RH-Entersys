@@ -512,6 +512,21 @@ export function useMyAttendance(filters?: Record<string, unknown>, limit = 50) {
 }
 
 /**
+ * Obtiene las evaluaciones de desempeño del empleado actual.
+ */
+export function useMyAppraisals() {
+  const user = useAuthStore((s) => s.user);
+  const employeeId = user?.employee_id;
+
+  return useQuery({
+    queryKey: ['my-appraisals', employeeId],
+    queryFn: () => performanceService.list({ filters: { employee: employeeId } }),
+    enabled: !!employeeId,
+    staleTime: 60_000,
+  });
+}
+
+/**
  * Obtiene las solicitudes de permiso del empleado actual.
  */
 export function useMyLeaves(filters?: Record<string, unknown>, limit = 20) {

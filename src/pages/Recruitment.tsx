@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Plus, Briefcase, Users, Clock, CheckCircle2, MapPin, Building2, X } from 'lucide-react';
 import StatsCard from '@/components/ui/StatsCard';
 import StatusBadge from '@/components/ui/StatusBadge';
+import ErrorState from '@/components/ui/ErrorState';
 import Modal from '@/components/ui/Modal';
 import ComboSelect from '@/components/ui/ComboSelect';
 import { useJobOpenings, useJobApplicants, useCreateJobOpening, useDepartments, useDesignations, useCompanies } from '@/hooks/useFrappe';
@@ -28,8 +29,8 @@ export default function Recruitment() {
     location: '',
   });
 
-  const { data: openings, isLoading: loadingOpenings } = useJobOpenings();
-  const { data: applicants, isLoading: loadingApplicants } = useJobApplicants();
+  const { data: openings, isLoading: loadingOpenings, isError: errorOpenings, refetch: refetchOpenings } = useJobOpenings();
+  const { data: applicants, isLoading: loadingApplicants, isError: errorApplicants, refetch: refetchApplicants } = useJobApplicants();
   const { data: departments } = useDepartments();
   const { data: designations } = useDesignations();
   const { data: companies } = useCompanies();
@@ -144,6 +145,10 @@ export default function Recruitment() {
             <div className="col-span-3 flex h-40 items-center justify-center">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" />
             </div>
+          ) : errorOpenings ? (
+            <div className="col-span-3">
+              <ErrorState onRetry={refetchOpenings} compact />
+            </div>
           ) : openings?.length === 0 ? (
             <div className="col-span-3 py-12 text-center text-gray-400">
               No hay vacantes. Crea una nueva desde el botón 'Nueva Vacante'.
@@ -221,6 +226,12 @@ export default function Recruitment() {
                     <tr>
                       <td colSpan={5} className="py-12 text-center">
                         <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" />
+                      </td>
+                    </tr>
+                  ) : errorApplicants ? (
+                    <tr>
+                      <td colSpan={5}>
+                        <ErrorState onRetry={refetchApplicants} compact />
                       </td>
                     </tr>
                   ) : !filtered || filtered.length === 0 ? (

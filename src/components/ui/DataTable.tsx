@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import ErrorState from '@/components/ui/ErrorState';
 
 export interface Column<T> {
   key: string;
@@ -11,6 +12,8 @@ interface DataTableProps<T> {
   columns: Column<T>[];
   data: T[];
   isLoading?: boolean;
+  isError?: boolean;
+  onRetry?: () => void;
   onRowClick?: (item: T) => void;
   page?: number;
   pageSize?: number;
@@ -24,6 +27,8 @@ export default function DataTable<T extends Record<string, any>>({
   columns,
   data,
   isLoading,
+  isError,
+  onRetry,
   onRowClick,
   page = 1,
   pageSize = 20,
@@ -39,6 +44,14 @@ export default function DataTable<T extends Record<string, any>>({
         <div className="flex h-64 items-center justify-center">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" />
         </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="table-container">
+        <ErrorState onRetry={onRetry} compact />
       </div>
     );
   }

@@ -12,18 +12,32 @@ import {
   useEmploymentTypes,
   useEmployees,
 } from '@/hooks/useFrappe';
+import ErrorState from '@/components/ui/ErrorState';
 import BrandingSection from '@/components/admin/BrandingSection';
 
 export default function AdminPlatform() {
-  const { data: departments } = useDepartments();
-  const { data: designations } = useDesignations();
-  const { data: companies } = useCompanies();
-  const { data: branches } = useBranches();
-  const { data: employmentTypes } = useEmploymentTypes();
-  const { data: allEmployees } = useEmployees(undefined, 5000);
-  const { data: activeEmployees } = useEmployees({ status: 'Active' }, 5000);
-  const { data: inactiveEmployees } = useEmployees({ status: 'Inactive' }, 5000);
-  const { data: suspendedEmployees } = useEmployees({ status: 'Suspended' }, 5000);
+  const depts = useDepartments();
+  const desigs = useDesignations();
+  const comps = useCompanies();
+  const brs = useBranches();
+  const empTypes = useEmploymentTypes();
+  const allEmps = useEmployees(undefined, 5000);
+  const activeEmps = useEmployees({ status: 'Active' }, 5000);
+  const inactiveEmps = useEmployees({ status: 'Inactive' }, 5000);
+  const suspendedEmps = useEmployees({ status: 'Suspended' }, 5000);
+
+  const departments = depts.data;
+  const designations = desigs.data;
+  const companies = comps.data;
+  const branches = brs.data;
+  const employmentTypes = empTypes.data;
+  const allEmployees = allEmps.data;
+  const activeEmployees = activeEmps.data;
+  const inactiveEmployees = inactiveEmps.data;
+  const suspendedEmployees = suspendedEmps.data;
+
+  const hasAnyError = depts.isError || desigs.isError || comps.isError || brs.isError || empTypes.isError || allEmps.isError;
+  const retryAll = () => { depts.refetch(); desigs.refetch(); comps.refetch(); brs.refetch(); empTypes.refetch(); allEmps.refetch(); activeEmps.refetch(); inactiveEmps.refetch(); suspendedEmps.refetch(); };
 
   const empRules = VALIDATION_RULES.employee;
   const etNames = (employmentTypes ?? []).map((t) => t.name);
@@ -34,6 +48,8 @@ export default function AdminPlatform() {
         <h1 className="text-2xl font-bold text-gray-900">Plataforma</h1>
         <p className="mt-1 text-gray-500">Reglas de validación, estado de datos y guía de carga masiva</p>
       </div>
+
+      {hasAnyError && <ErrorState onRetry={retryAll} compact />}
 
       {/* Section 0: Branding */}
       <BrandingSection />

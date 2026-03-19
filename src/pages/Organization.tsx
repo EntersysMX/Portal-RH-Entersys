@@ -1,9 +1,10 @@
 import { Building2, Users, GitBranch } from 'lucide-react';
 import { useDepartments, useEmployees } from '@/hooks/useFrappe';
+import ErrorState from '@/components/ui/ErrorState';
 import type { Department } from '@/types/frappe';
 
 export default function Organization() {
-  const { data: departments, isLoading } = useDepartments();
+  const { data: departments, isLoading, isError, refetch } = useDepartments();
   const { data: employees } = useEmployees(undefined, 200);
 
   const getEmployeeCount = (dept: string) =>
@@ -40,6 +41,8 @@ export default function Organization() {
         <div className="flex h-40 items-center justify-center">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" />
         </div>
+      ) : isError ? (
+        <ErrorState onRetry={refetch} compact />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {departments?.map((dept: Department) => (

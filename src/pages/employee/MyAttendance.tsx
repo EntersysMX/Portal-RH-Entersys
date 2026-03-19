@@ -3,6 +3,7 @@ import { CalendarCheck, Clock, AlertCircle } from 'lucide-react';
 import { useMyAttendance, useMyLeaves } from '@/hooks/useFrappe';
 import StatusBadge from '@/components/ui/StatusBadge';
 import StatsCard from '@/components/ui/StatsCard';
+import ErrorState from '@/components/ui/ErrorState';
 import { useAuthStore } from '@/store/authStore';
 
 export default function MyAttendance() {
@@ -15,7 +16,7 @@ export default function MyAttendance() {
   const monthStart = `${month}-01`;
   const monthEnd = `${month}-31`;
 
-  const { data: attendance, isLoading } = useMyAttendance(
+  const { data: attendance, isLoading, isError, refetch } = useMyAttendance(
     {
       attendance_date: ['between', [monthStart, monthEnd]],
     },
@@ -67,6 +68,8 @@ export default function MyAttendance() {
           <div className="flex h-48 items-center justify-center">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-600 border-t-transparent" />
           </div>
+        ) : isError ? (
+          <ErrorState onRetry={refetch} compact />
         ) : attendance && attendance.length > 0 ? (
           <div className="table-container">
             <table>

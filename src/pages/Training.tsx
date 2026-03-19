@@ -1,11 +1,12 @@
 import { GraduationCap, Calendar, Users, CheckCircle2 } from 'lucide-react';
 import StatsCard from '@/components/ui/StatsCard';
 import StatusBadge from '@/components/ui/StatusBadge';
+import ErrorState from '@/components/ui/ErrorState';
 import { useTrainingEvents } from '@/hooks/useFrappe';
 import type { TrainingEvent } from '@/types/frappe';
 
 export default function Training() {
-  const { data: events, isLoading } = useTrainingEvents();
+  const { data: events, isLoading, isError, refetch } = useTrainingEvents();
 
   const scheduledCount = events?.filter((e) => e.status === 'Scheduled').length ?? 0;
   const completedCount = events?.filter((e) => e.status === 'Completed').length ?? 0;
@@ -28,6 +29,8 @@ export default function Training() {
         <div className="flex h-40 items-center justify-center">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" />
         </div>
+      ) : isError ? (
+        <ErrorState onRetry={refetch} compact />
       ) : events?.length === 0 ? (
         <div className="card py-12 text-center text-gray-400">
           No hay eventos de capacitación. Crea uno desde el módulo de Capacitación.

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Download, Eye, FileText, FileSpreadsheet } from 'lucide-react';
 import { useMySalarySlips } from '@/hooks/useFrappe';
 import StatusBadge from '@/components/ui/StatusBadge';
+import ErrorState from '@/components/ui/ErrorState';
 import PayslipDetailModal from '@/components/payroll/PayslipDetailModal';
 import { downloadSalarySlipPdf } from '@/lib/pdf/pdfGenerator';
 import { downloadPayrollExcel } from '@/lib/excel/excelGenerator';
@@ -12,7 +13,7 @@ export default function MyPayslips() {
   const user = useAuthStore((s) => s.user);
   const [page, setPage] = useState(1);
   const pageSize = 10;
-  const { data: slips, isLoading } = useMySalarySlips(pageSize, (page - 1) * pageSize);
+  const { data: slips, isLoading, isError, refetch } = useMySalarySlips(pageSize, (page - 1) * pageSize);
   const [selectedSlip, setSelectedSlip] = useState<SalarySlip | null>(null);
 
   return (
@@ -66,6 +67,8 @@ export default function MyPayslips() {
           <div className="flex h-48 items-center justify-center">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-600 border-t-transparent" />
           </div>
+        ) : isError ? (
+          <ErrorState onRetry={refetch} compact />
         ) : slips && slips.length > 0 ? (
           <div className="table-container">
             <table>

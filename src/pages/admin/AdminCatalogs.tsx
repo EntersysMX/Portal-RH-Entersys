@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, Search, Pencil, Trash2, Database, Crown, ArrowRight } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
+import ErrorState from '@/components/ui/ErrorState';
 import ComboSelect from '@/components/ui/ComboSelect';
 import { toast } from '@/components/ui/Toast';
 import {
@@ -97,7 +98,7 @@ export default function AdminCatalogs() {
 // DEPARTMENTS TAB
 // ============================================
 function DepartmentsTab({ search }: { search: string }) {
-  const { data, isLoading } = useDepartments();
+  const { data, isLoading, isError, refetch } = useDepartments();
   const { data: companies } = useCompanies();
   const createMut = useCreateDepartment();
   const updateMut = useUpdateDepartment();
@@ -152,6 +153,8 @@ function DepartmentsTab({ search }: { search: string }) {
       </div>
       <CatalogTable
         isLoading={isLoading}
+        isError={isError}
+        onRetry={refetch}
         headers={['Nombre', 'Empresa']}
         rows={filtered.map((d) => ({
           key: d.name,
@@ -184,7 +187,7 @@ function DepartmentsTab({ search }: { search: string }) {
 // DESIGNATIONS TAB (with hierarchy)
 // ============================================
 function DesignationsTab({ search }: { search: string }) {
-  const { data, isLoading } = useDesignations();
+  const { data, isLoading, isError, refetch } = useDesignations();
   const createMut = useCreateDesignation();
   const updateMut = useUpdateDesignation();
   const deleteMut = useDeleteDesignation();
@@ -322,6 +325,8 @@ function DesignationsTab({ search }: { search: string }) {
         <div className="flex justify-center py-12">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-600 border-t-transparent" />
         </div>
+      ) : isError ? (
+        <ErrorState onRetry={refetch} compact />
       ) : sorted.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 py-12">
           <Database className="h-10 w-10 text-gray-300" />
@@ -434,7 +439,7 @@ function DesignationsTab({ search }: { search: string }) {
 // COMPANIES TAB
 // ============================================
 function CompaniesTab({ search }: { search: string }) {
-  const { data, isLoading } = useCompanies();
+  const { data, isLoading, isError, refetch } = useCompanies();
   const createMut = useCreateCompany();
   const updateMut = useUpdateCompany();
   const deleteMut = useDeleteCompany();
@@ -473,7 +478,7 @@ function CompaniesTab({ search }: { search: string }) {
         <p className="text-sm text-gray-500">{filtered.length} empresa{filtered.length !== 1 ? 's' : ''}</p>
         <button onClick={openCreate} className="btn-primary"><Plus className="h-4 w-4" /> Nuevo</button>
       </div>
-      <CatalogTable isLoading={isLoading} headers={['Empresa', 'Abreviatura']}
+      <CatalogTable isLoading={isLoading} isError={isError} onRetry={refetch} headers={['Empresa', 'Abreviatura']}
         rows={filtered.map((c) => ({ key: c.name, cells: [c.company_name || c.name, c.abbr || '—'], onEdit: () => openEdit(c), onDelete: () => setDeleteTarget(c.name) }))}
         emptyMessage="No hay empresas registradas"
       />
@@ -511,7 +516,7 @@ function CompaniesTab({ search }: { search: string }) {
 // BRANCHES TAB
 // ============================================
 function BranchesTab({ search }: { search: string }) {
-  const { data, isLoading } = useBranches();
+  const { data, isLoading, isError, refetch } = useBranches();
   const createMut = useCreateBranch();
   const updateMut = useUpdateBranch();
   const deleteMut = useDeleteBranch();
@@ -550,7 +555,7 @@ function BranchesTab({ search }: { search: string }) {
         <p className="text-sm text-gray-500">{filtered.length} sucursal{filtered.length !== 1 ? 'es' : ''}</p>
         <button onClick={openCreate} className="btn-primary"><Plus className="h-4 w-4" /> Nuevo</button>
       </div>
-      <CatalogTable isLoading={isLoading} headers={['Sucursal']}
+      <CatalogTable isLoading={isLoading} isError={isError} onRetry={refetch} headers={['Sucursal']}
         rows={filtered.map((b) => ({ key: b.name, cells: [b.branch || b.name], onEdit: () => openEdit(b), onDelete: () => setDeleteTarget(b.name) }))}
         emptyMessage="No hay sucursales registradas"
       />
@@ -572,7 +577,7 @@ function BranchesTab({ search }: { search: string }) {
 // EMPLOYMENT TYPES TAB
 // ============================================
 function EmploymentTypesTab({ search }: { search: string }) {
-  const { data, isLoading } = useEmploymentTypes();
+  const { data, isLoading, isError, refetch } = useEmploymentTypes();
   const createMut = useCreateEmploymentType();
   const updateMut = useUpdateEmploymentType();
   const deleteMut = useDeleteEmploymentType();
@@ -611,7 +616,7 @@ function EmploymentTypesTab({ search }: { search: string }) {
         <p className="text-sm text-gray-500">{filtered.length} tipo{filtered.length !== 1 ? 's' : ''}</p>
         <button onClick={openCreate} className="btn-primary"><Plus className="h-4 w-4" /> Nuevo</button>
       </div>
-      <CatalogTable isLoading={isLoading} headers={['Tipo de Empleo']}
+      <CatalogTable isLoading={isLoading} isError={isError} onRetry={refetch} headers={['Tipo de Empleo']}
         rows={filtered.map((t) => ({ key: t.name, cells: [t.name], onEdit: () => openEdit(t), onDelete: () => setDeleteTarget(t.name) }))}
         emptyMessage="No hay tipos de empleo registrados"
       />
@@ -642,11 +647,15 @@ interface CatalogRow {
 
 function CatalogTable({
   isLoading,
+  isError,
+  onRetry,
   headers,
   rows,
   emptyMessage,
 }: {
   isLoading: boolean;
+  isError?: boolean;
+  onRetry?: () => void;
   headers: string[];
   rows: CatalogRow[];
   emptyMessage: string;
@@ -657,6 +666,10 @@ function CatalogTable({
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-600 border-t-transparent" />
       </div>
     );
+  }
+
+  if (isError) {
+    return <ErrorState onRetry={onRetry} compact />;
   }
 
   if (rows.length === 0) {

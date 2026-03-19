@@ -1,11 +1,12 @@
 import { Receipt, DollarSign, Clock, CheckCircle2 } from 'lucide-react';
 import StatsCard from '@/components/ui/StatsCard';
 import StatusBadge from '@/components/ui/StatusBadge';
+import ErrorState from '@/components/ui/ErrorState';
 import { useExpenseClaims } from '@/hooks/useFrappe';
 import type { ExpenseClaim } from '@/types/frappe';
 
 export default function Expenses() {
-  const { data: claims, isLoading } = useExpenseClaims();
+  const { data: claims, isLoading, isError, refetch } = useExpenseClaims();
 
   const totalClaimed = claims?.reduce((s, c) => s + (c.total_claimed_amount ?? 0), 0) ?? 0;
   const pendingCount = claims?.filter((c) => c.approval_status === 'Draft').length ?? 0;
@@ -32,6 +33,8 @@ export default function Expenses() {
         <div className="flex h-40 items-center justify-center">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" />
         </div>
+      ) : isError ? (
+        <ErrorState onRetry={refetch} compact />
       ) : claims?.length === 0 ? (
         <div className="card py-12 text-center text-gray-400">
           No hay solicitudes de gastos

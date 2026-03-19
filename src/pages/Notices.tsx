@@ -27,7 +27,7 @@ function TypeBadge({ type }: { type: Notice['type'] }) {
 }
 
 export default function Notices() {
-  const { data: notices, isLoading } = useNotices();
+  const { data: notices, isLoading, isError, refetch } = useNotices();
   const createMutation = useCreateNotice();
   const [showNewModal, setShowNewModal] = useState(false);
   const [newNotice, setNewNotice] = useState({
@@ -120,6 +120,8 @@ export default function Notices() {
         columns={columns}
         data={notices ?? []}
         isLoading={isLoading}
+        isError={isError}
+        onRetry={refetch}
         emptyMessage="No hay avisos. Crea el primero desde el botón 'Nuevo Aviso'."
       />
 

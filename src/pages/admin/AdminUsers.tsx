@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Users, Search, Shield, UserCog, Trash2 } from 'lucide-react';
 import { clsx } from 'clsx';
 import Modal from '@/components/ui/Modal';
+import ErrorState from '@/components/ui/ErrorState';
 import { useModuleStore } from '@/store/moduleStore';
 import { useEmployees } from '@/hooks/useFrappe';
 import { toast } from '@/components/ui/Toast';
@@ -9,7 +10,7 @@ import type { Employee } from '@/types/frappe';
 
 export default function AdminUsers() {
   const { roles, assignments, setUserRoles, removeUserAssignment } = useModuleStore();
-  const { data: employees, isLoading } = useEmployees({ status: 'Active' }, 200);
+  const { data: employees, isLoading, isError, refetch } = useEmployees({ status: 'Active' }, 200);
 
   const [search, setSearch] = useState('');
   const [selectedUser, setSelectedUser] = useState<Employee | null>(null);
@@ -78,6 +79,10 @@ export default function AdminUsers() {
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-600 border-t-transparent" />
       </div>
     );
+  }
+
+  if (isError) {
+    return <ErrorState onRetry={refetch} message="No se pudo cargar la lista de empleados." />;
   }
 
   return (

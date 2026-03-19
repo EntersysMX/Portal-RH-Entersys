@@ -399,6 +399,7 @@ export const dashboardService = {
     const today = new Date().toISOString().split('T')[0];
     const monthStart = `${today.substring(0, 7)}-01`;
 
+    // Cada llamada individual tiene catch para no bloquear si un doctype falla
     const [
       totalEmployees,
       activeEmployees,
@@ -407,27 +408,30 @@ export const dashboardService = {
       pendingLeaves,
       attendanceToday,
       departments,
-    ] = await Promise.all([
-      frappeGetCount({ doctype: 'Employee' }),
-      frappeGetCount({ doctype: 'Employee', filters: { status: 'Active' } }),
-      frappeGetCount({
-        doctype: 'Employee',
-        filters: [['date_of_joining', '>=', monthStart]],
-      }),
-      frappeGetCount({ doctype: 'Job Opening', filters: { status: 'Open' } }),
-      frappeGetCount({ doctype: 'Leave Application', filters: { status: 'Open' } }),
-      frappeGetCount({
-        doctype: 'Attendance',
-        filters: { attendance_date: today, status: 'Present' },
-      }),
-      frappeGetList<{ department: string; count: number }>({
-        doctype: 'Employee',
-        fields: ['department', 'count(name) as count'],
-        filters: { status: 'Active' },
-        group_by: 'department',
-        limit_page_length: 50,
-      }),
-    ]);
+    ] = await withTimeout(
+      Promise.all([
+        frappeGetCount({ doctype: 'Employee' }).catch(() => 0),
+        frappeGetCount({ doctype: 'Employee', filters: { status: 'Active' } }).catch(() => 0),
+        frappeGetCount({
+          doctype: 'Employee',
+          filters: [['date_of_joining', '>=', monthStart]],
+        }).catch(() => 0),
+        frappeGetCount({ doctype: 'Job Opening', filters: { status: 'Open' } }).catch(() => 0),
+        frappeGetCount({ doctype: 'Leave Application', filters: { status: 'Open' } }).catch(() => 0),
+        frappeGetCount({
+          doctype: 'Attendance',
+          filters: { attendance_date: today, status: 'Present' },
+        }).catch(() => 0),
+        frappeGetList<{ department: string; count: number }>({
+          doctype: 'Employee',
+          fields: ['department', 'count(name) as count'],
+          filters: { status: 'Active' },
+          group_by: 'department',
+          limit_page_length: 50,
+        }).catch(() => []),
+      ]),
+      15_000, // 15s timeout para todo el bloque de stats
+    );
 
     return {
       total_employees: totalEmployees,
@@ -689,22 +693,28 @@ async function saveConfig<T>(key: string, data: T): Promise<void> {
   const json = JSON.stringify(data);
   const title = noteTitle(key);
 
-  // 1. Guardar en backend PRIMERO (fuente de verdad)
-  // Buscar si ya existe un Note con este título
-  const existing = await frappeGetList<{ name: string }>({
-    doctype: 'Note',
-    fields: ['name'],
-    filters: { title },
-    limit_page_length: 1,
-  });
+  // Timeout protege contra backend colgado al escribir
+  await withTimeout(
+    (async () => {
+      // 1. Guardar en backend PRIMERO (fuente de verdad)
+      // Buscar si ya existe un Note con este título
+      const existing = await frappeGetList<{ name: string }>({
+        doctype: 'Note',
+        fields: ['name'],
+        filters: { title },
+        limit_page_length: 1,
+      });
 
-  if (existing.length > 0) {
-    // Actualizar el Note existente
-    await frappeUpdateDoc('Note', existing[0].name, { content: json });
-  } else {
-    // Crear un Note nuevo
-    await frappeCreateDoc('Note', { title, content: json, public: 1 });
-  }
+      if (existing.length > 0) {
+        // Actualizar el Note existente
+        await frappeUpdateDoc('Note', existing[0].name, { content: json });
+      } else {
+        // Crear un Note nuevo
+        await frappeCreateDoc('Note', { title, content: json, public: 1 });
+      }
+    })(),
+    CONFIG_TIMEOUT_MS,
+  );
 
   // 2. Solo actualizar caché local si el backend tuvo éxito
   localStorage.setItem(CACHE_PREFIX + key, json);

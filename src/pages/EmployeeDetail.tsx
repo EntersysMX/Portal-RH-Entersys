@@ -12,6 +12,7 @@ import {
 import StatsCard from '@/components/ui/StatsCard';
 import DataTable, { Column } from '@/components/ui/DataTable';
 import StatusBadge from '@/components/ui/StatusBadge';
+import ErrorState from '@/components/ui/ErrorState';
 import PayslipDetailModal from '@/components/payroll/PayslipDetailModal';
 import Modal from '@/components/ui/Modal';
 import { useEmployeeFullProfile, useEmployeeDocuments, useUploadEmployeeDocument, useDeleteEmployeeDocument } from '@/hooks/useFrappe';
@@ -60,7 +61,7 @@ export default function EmployeeDetail() {
   const [activeTab, setActiveTab] = useState<TabId>('general');
   const [selectedSlip, setSelectedSlip] = useState<SalarySlip | null>(null);
 
-  const { data: profile, isLoading } = useEmployeeFullProfile(id || '');
+  const { data: profile, isLoading, isError, refetch } = useEmployeeFullProfile(id || '');
 
   if (isLoading) {
     return (
@@ -68,6 +69,10 @@ export default function EmployeeDetail() {
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-600 border-t-transparent" />
       </div>
     );
+  }
+
+  if (isError) {
+    return <ErrorState onRetry={refetch} message="No se pudo cargar el perfil del empleado." />;
   }
 
   if (!profile) {

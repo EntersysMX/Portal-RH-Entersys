@@ -6,10 +6,11 @@ import type { Employee } from '@/types/frappe';
 import type { GoogleDirectoryUser, DirectoryListResponse } from './types';
 
 const DIRECTORY_API = 'https://admin.googleapis.com/admin/directory/v1';
+const FETCH_PAGE_TIMEOUT_MS = 15_000;
 
 /**
  * Obtiene todos los usuarios del directorio de Google Workspace para un dominio.
- * Maneja paginacion automaticamente.
+ * Maneja paginacion automaticamente. Timeout de 15s por página.
  */
 export async function fetchDirectoryUsers(
   token: string,
@@ -30,9 +31,25 @@ export async function fetchDirectoryUsers(
     const url = `${DIRECTORY_API}/users?${params}`;
     console.log('[Directory] Llamando:', url);
 
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    // AbortController con timeout para evitar que fetch quede colgado
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), FETCH_PAGE_TIMEOUT_MS);
+
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: controller.signal,
+      });
+    } catch (err) {
+      clearTimeout(timer);
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        throw new Error('Timeout al obtener usuarios del directorio de Google (15s)');
+      }
+      throw err;
+    } finally {
+      clearTimeout(timer);
+    }
 
     console.log('[Directory] Status:', res.status);
 

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Bell, ChevronDown, ChevronUp, Info, AlertTriangle, CheckCircle, AlertCircle } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useNotices } from '@/hooks/useFrappe';
+import ErrorState from '@/components/ui/ErrorState';
 import type { Notice } from '@/types/frappe';
 
 const TYPE_CONFIG: Record<Notice['type'], { bg: string; border: string; icon: React.ComponentType<{className?: string}>; badge: string }> = {
@@ -12,7 +13,7 @@ const TYPE_CONFIG: Record<Notice['type'], { bg: string; border: string; icon: Re
 };
 
 export default function MyNotices() {
-  const { data: notices, isLoading } = useNotices();
+  const { data: notices, isLoading, isError, refetch } = useNotices();
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const activeNotices = notices?.filter((n) => n.status === 'Active') || [];
@@ -23,6 +24,10 @@ export default function MyNotices() {
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-600 border-t-transparent" />
       </div>
     );
+  }
+
+  if (isError) {
+    return <ErrorState onRetry={refetch} message="No se pudieron cargar los avisos." />;
   }
 
   return (

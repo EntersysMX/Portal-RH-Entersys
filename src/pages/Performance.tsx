@@ -1,6 +1,7 @@
 import { Target, Award, TrendingUp, BarChart3 } from 'lucide-react';
 import StatsCard from '@/components/ui/StatsCard';
 import StatusBadge from '@/components/ui/StatusBadge';
+import ErrorState from '@/components/ui/ErrorState';
 import { useAppraisals } from '@/hooks/useFrappe';
 import type { Appraisal } from '@/types/frappe';
 import {
@@ -22,7 +23,7 @@ const demoRadarData = [
 ];
 
 export default function Performance() {
-  const { data: appraisals, isLoading } = useAppraisals();
+  const { data: appraisals, isLoading, isError, refetch } = useAppraisals();
 
   const completedCount = appraisals?.filter((a) => a.status === 'Completed').length ?? 0;
   const avgScore =
@@ -76,6 +77,8 @@ export default function Performance() {
             <div className="flex h-40 items-center justify-center">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" />
             </div>
+          ) : isError ? (
+            <ErrorState onRetry={refetch} compact />
           ) : appraisals?.length === 0 ? (
             <p className="py-8 text-center text-gray-400">
               No hay evaluaciones. Configura ciclos de evaluación desde el módulo de Performance.

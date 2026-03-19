@@ -37,6 +37,7 @@ function getFrappeUrl(): string {
 }
 
 const client = axios.create({
+  timeout: 30_000, // 30s — evita que cualquier request quede colgado indefinidamente
   headers: {
     'Content-Type': 'application/json',
     Accept: 'application/json',
