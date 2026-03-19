@@ -617,133 +617,136 @@ export const payrollServiceExtended = {
 };
 
 // ============================================
+// NOTE-BASED CRUD STORE
+// Los módulos nuevos (Survey, Incapacity, etc.) no tienen
+// doctype en Frappe. Usamos Notes como key-value store JSON
+// (mismo patrón que platformConfigService).
+// Cada "colección" es un Note con título enterhr_<key>
+// y content = JSON array de registros.
+// ============================================
+
+/** Genera un ID único corto para registros */
+function generateId(prefix: string): string {
+  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+}
+
+/** CRUD genérico sobre Note-based store */
+function noteStore<T extends { name: string }>(storeKey: string, idPrefix: string) {
+  const load = (): Promise<T[]> => loadConfig<T[]>(storeKey, []);
+  const save = (items: T[]): Promise<void> => saveConfig(storeKey, items);
+
+  return {
+    list: async (_params?: { filters?: Record<string, unknown>; limit?: number }): Promise<T[]> => {
+      const items = await load();
+      // Basic client-side filtering
+      if (_params?.filters) {
+        return items.filter((item) => {
+          return Object.entries(_params.filters!).every(([key, val]) => {
+            return (item as Record<string, unknown>)[key] === val;
+          });
+        });
+      }
+      return items;
+    },
+
+    get: async (name: string): Promise<T> => {
+      const items = await load();
+      const found = items.find((i) => i.name === name);
+      if (!found) throw new Error(`${storeKey}: ${name} not found`);
+      return found;
+    },
+
+    create: async (data: Partial<T>): Promise<T> => {
+      const items = await load();
+      const newItem = { ...data, name: generateId(idPrefix), creation: new Date().toISOString() } as unknown as T;
+      items.unshift(newItem);
+      await save(items);
+      return newItem;
+    },
+
+    update: async (name: string, data: Partial<T>): Promise<T> => {
+      const items = await load();
+      const idx = items.findIndex((i) => i.name === name);
+      if (idx === -1) throw new Error(`${storeKey}: ${name} not found`);
+      items[idx] = { ...items[idx], ...data };
+      await save(items);
+      return items[idx];
+    },
+
+    delete: async (name: string): Promise<void> => {
+      const items = await load();
+      const filtered = items.filter((i) => i.name !== name);
+      await save(filtered);
+    },
+  };
+}
+
+// ============================================
 // SURVEY SERVICE (Encuestas)
 // ============================================
+const _surveyStore = noteStore<Survey>('enterhr_surveys', 'SUR');
+const _responseStore = noteStore<SurveyResponse>('enterhr_survey_responses', 'SRES');
+
 export const surveyService = {
-  list: (params?: { filters?: Record<string, unknown>; limit?: number }) =>
-    frappeGetList<Survey>({
-      doctype: 'Survey',
-      fields: ['*'],
-      filters: params?.filters,
-      limit_page_length: params?.limit || 50,
-      order_by: 'creation desc',
-    }),
-
-  get: (name: string) => frappeGetDoc<Survey>('Survey', name),
-
-  create: (data: Partial<Survey>) => frappeCreateDoc<Survey>('Survey', data),
-
-  update: (name: string, data: Partial<Survey>) =>
-    frappeUpdateDoc<Survey>('Survey', name, data),
-
-  delete: (name: string) => frappeDeleteDoc('Survey', name),
-
-  listResponses: (surveyName: string) =>
-    frappeGetList<SurveyResponse>({
-      doctype: 'Survey Response',
-      fields: ['*'],
-      filters: { survey: surveyName },
-      limit_page_length: 500,
-      order_by: 'submitted_at desc',
-    }),
-
-  submitResponse: (data: Partial<SurveyResponse>) =>
-    frappeCreateDoc<SurveyResponse>('Survey Response', data),
+  list: _surveyStore.list,
+  get: _surveyStore.get,
+  create: _surveyStore.create,
+  update: (name: string, data: Partial<Survey>) => _surveyStore.update(name, data),
+  delete: _surveyStore.delete,
+  listResponses: (surveyName: string) => _responseStore.list({ filters: { survey: surveyName } }),
+  submitResponse: _responseStore.create,
 };
 
 // ============================================
 // INCAPACITY SERVICE (Incapacidades)
 // ============================================
+const _incapacityStore = noteStore<Incapacity>('enterhr_incapacities', 'INC');
+
 export const incapacityService = {
-  list: (params?: { filters?: Record<string, unknown>; limit?: number }) =>
-    frappeGetList<Incapacity>({
-      doctype: 'Incapacity',
-      fields: ['*'],
-      filters: params?.filters,
-      limit_page_length: params?.limit || 50,
-      order_by: 'start_date desc',
-    }),
-
-  get: (name: string) => frappeGetDoc<Incapacity>('Incapacity', name),
-
-  create: (data: Partial<Incapacity>) => frappeCreateDoc<Incapacity>('Incapacity', data),
-
-  update: (name: string, data: Partial<Incapacity>) =>
-    frappeUpdateDoc<Incapacity>('Incapacity', name, data),
-
-  delete: (name: string) => frappeDeleteDoc('Incapacity', name),
+  list: _incapacityStore.list,
+  get: _incapacityStore.get,
+  create: _incapacityStore.create,
+  update: (name: string, data: Partial<Incapacity>) => _incapacityStore.update(name, data),
+  delete: _incapacityStore.delete,
 };
 
 // ============================================
 // DISCIPLINE SERVICE (Disciplina)
 // ============================================
+const _disciplineStore = noteStore<DisciplinaryAction>('enterhr_discipline', 'DIS');
+
 export const disciplineService = {
-  list: (params?: { filters?: Record<string, unknown>; limit?: number }) =>
-    frappeGetList<DisciplinaryAction>({
-      doctype: 'Disciplinary Action',
-      fields: ['*'],
-      filters: params?.filters,
-      limit_page_length: params?.limit || 50,
-      order_by: 'date desc',
-    }),
-
-  get: (name: string) => frappeGetDoc<DisciplinaryAction>('Disciplinary Action', name),
-
-  create: (data: Partial<DisciplinaryAction>) =>
-    frappeCreateDoc<DisciplinaryAction>('Disciplinary Action', data),
-
-  update: (name: string, data: Partial<DisciplinaryAction>) =>
-    frappeUpdateDoc<DisciplinaryAction>('Disciplinary Action', name, data),
-
-  delete: (name: string) => frappeDeleteDoc('Disciplinary Action', name),
+  list: _disciplineStore.list,
+  get: _disciplineStore.get,
+  create: _disciplineStore.create,
+  update: (name: string, data: Partial<DisciplinaryAction>) => _disciplineStore.update(name, data),
+  delete: _disciplineStore.delete,
 };
 
 // ============================================
 // EQUIPMENT SERVICE (Equipamiento)
 // ============================================
+const _equipmentStore = noteStore<EquipmentAssignment>('enterhr_equipment', 'EQP');
+
 export const equipmentService = {
-  list: (params?: { filters?: Record<string, unknown>; limit?: number }) =>
-    frappeGetList<EquipmentAssignment>({
-      doctype: 'Equipment Assignment',
-      fields: ['*'],
-      filters: params?.filters,
-      limit_page_length: params?.limit || 50,
-      order_by: 'assigned_date desc',
-    }),
-
-  get: (name: string) => frappeGetDoc<EquipmentAssignment>('Equipment Assignment', name),
-
-  create: (data: Partial<EquipmentAssignment>) =>
-    frappeCreateDoc<EquipmentAssignment>('Equipment Assignment', data),
-
-  update: (name: string, data: Partial<EquipmentAssignment>) =>
-    frappeUpdateDoc<EquipmentAssignment>('Equipment Assignment', name, data),
-
-  delete: (name: string) => frappeDeleteDoc('Equipment Assignment', name),
+  list: _equipmentStore.list,
+  get: _equipmentStore.get,
+  create: _equipmentStore.create,
+  update: (name: string, data: Partial<EquipmentAssignment>) => _equipmentStore.update(name, data),
+  delete: _equipmentStore.delete,
 };
 
 // ============================================
 // ONBOARDING SERVICE
 // ============================================
+const _onboardingStore = noteStore<OnboardingChecklist>('enterhr_onboarding', 'ONB');
+
 export const onboardingService = {
-  list: (params?: { filters?: Record<string, unknown>; limit?: number }) =>
-    frappeGetList<OnboardingChecklist>({
-      doctype: 'Onboarding Checklist',
-      fields: ['*'],
-      filters: params?.filters,
-      limit_page_length: params?.limit || 50,
-      order_by: 'creation desc',
-    }),
-
-  get: (name: string) => frappeGetDoc<OnboardingChecklist>('Onboarding Checklist', name),
-
-  create: (data: Partial<OnboardingChecklist>) =>
-    frappeCreateDoc<OnboardingChecklist>('Onboarding Checklist', data),
-
-  update: (name: string, data: Partial<OnboardingChecklist>) =>
-    frappeUpdateDoc<OnboardingChecklist>('Onboarding Checklist', name, data),
-
-  delete: (name: string) => frappeDeleteDoc('Onboarding Checklist', name),
+  list: _onboardingStore.list,
+  get: _onboardingStore.get,
+  create: _onboardingStore.create,
+  update: (name: string, data: Partial<OnboardingChecklist>) => _onboardingStore.update(name, data),
+  delete: _onboardingStore.delete,
 };
 
 // ============================================
