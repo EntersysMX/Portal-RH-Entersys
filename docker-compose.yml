@@ -1,7 +1,7 @@
 # ============================================
 # Frappe HR - Docker Compose
 # Levanta una instancia completa de Frappe HR
-# con ERPNext + HRMS para conectar via REST API
+# con ERPNext para conectar via REST API (HRMS deshabilitado)
 # ============================================
 # Uso:
 #   docker compose up -d

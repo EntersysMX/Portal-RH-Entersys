@@ -68,8 +68,8 @@ fi
 
 # 6. Instalar apps (ERPNext ya viene, solo falta HRMS)
 echo -e "${BLUE}[6/7]${NC} Instalando módulo de HRMS..."
-docker compose exec -T backend bench --site hr.localhost install-app hrms 2>/dev/null || \
-    echo -e "${YELLOW}  ! HRMS ya estaba instalado o no está disponible en la imagen${NC}"
+# docker compose exec -T backend bench --site hr.localhost install-app hrms 2>/dev/null || \
+#     echo -e "${YELLOW}  ! HRMS ya estaba instalado o no está disponible en la imagen${NC}"
 echo -e "${GREEN}  ✓ HRMS instalado${NC}"
 
 # 7. Configurar CORS y modo desarrollo
