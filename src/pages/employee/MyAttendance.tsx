@@ -34,7 +34,7 @@ export default function MyAttendance() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Mi Asistencia</h1>
           <p className="mt-1 text-gray-500">
@@ -50,7 +50,7 @@ export default function MyAttendance() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatsCard title="Presente" value={String(present)} icon={CalendarCheck} color="green" />
         <StatsCard title="Ausente" value={String(absent)} icon={AlertCircle} color="red" />
         <StatsCard title="Medio día" value={String(halfDay)} icon={Clock} color="orange" />

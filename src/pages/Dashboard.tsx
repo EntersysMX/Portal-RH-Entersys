@@ -174,8 +174,8 @@ export default function Dashboard() {
           <h3 className="mb-4 text-base font-semibold text-gray-900">
             Distribución por Departamento
           </h3>
-          <div className="flex items-center gap-8">
-            <ResponsiveContainer width="50%" height={280}>
+          <div className="flex flex-col items-center gap-4 lg:flex-row lg:gap-8">
+            <ResponsiveContainer width="100%" height={280} className="lg:!w-1/2">
               <PieChart>
                 <Pie
                   data={deptData}
@@ -194,7 +194,7 @@ export default function Dashboard() {
                 <Tooltip />
               </PieChart>
             </ResponsiveContainer>
-            <div className="space-y-2">
+            <div className="flex flex-wrap gap-x-4 gap-y-2 lg:flex-col lg:space-y-2 lg:gap-0">
               {deptData.map((dept, idx) => (
                 <div key={dept.name} className="flex items-center gap-2">
                   <div
@@ -248,7 +248,7 @@ export default function Dashboard() {
         {/* Quick actions */}
         <div className="card border-t-[3px] border-t-violet-500">
           <h3 className="mb-4 text-base font-semibold text-gray-900">Acciones Rápidas</h3>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {[
               { label: 'Nuevo Empleado', href: '/employees?action=new', color: 'bg-blue-50 text-blue-700 hover:bg-blue-100' },
               { label: 'Nueva Vacante', href: '/recruitment?action=new', color: 'bg-purple-50 text-purple-700 hover:bg-purple-100' },

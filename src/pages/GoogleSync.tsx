@@ -554,7 +554,7 @@ export default function GoogleSync() {
             {!directoryLoading && !directoryError && directoryUsers.length > 0 && (
               <>
                 {/* Stats */}
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <div className="rounded-lg bg-blue-50 p-3 text-center">
                     <p className="text-2xl font-bold text-blue-700">{directoryUsers.length}</p>
                     <p className="text-xs text-blue-600">Total encontrados</p>
@@ -998,7 +998,7 @@ export default function GoogleSync() {
               </h3>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="rounded-lg bg-green-50 p-4 text-center">
                 <p className="text-3xl font-bold text-green-700">{importedOk}</p>
                 <p className="text-sm text-green-600">Creados</p>

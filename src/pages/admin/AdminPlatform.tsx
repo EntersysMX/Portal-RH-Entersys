@@ -129,7 +129,7 @@ export default function AdminPlatform() {
           <h2 className="text-lg font-semibold text-gray-900">Estado de Datos</h2>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 lg:grid-cols-5">
           <StatCard label="Departamentos" count={departments?.length ?? 0} />
           <StatCard label="Puestos" count={designations?.length ?? 0} />
           <StatCard label="Empresas" count={companies?.length ?? 0} />
@@ -141,7 +141,7 @@ export default function AdminPlatform() {
           Gestionar catálogos <ArrowRight className="h-4 w-4" />
         </Link>
 
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-xl border border-gray-200 p-4 text-center">
             <Users className="mx-auto h-6 w-6 text-gray-400" />
             <p className="mt-2 text-2xl font-bold text-gray-900">{allEmployees?.length ?? 0}</p>

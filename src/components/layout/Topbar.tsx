@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Bell, LogOut, User, ChevronDown, Shield } from 'lucide-react';
+import { Search, Bell, LogOut, User, ChevronDown, Shield, Menu } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useSidebarState } from '@/hooks/useSidebarState';
 
 export default function Topbar() {
   const { user, logout } = useAuthStore();
   const { profileLabel, profileBadgeColor, isEmployeeOnly } = usePermissions();
+  const { openMobile } = useSidebarState();
   const navigate = useNavigate();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -33,19 +35,31 @@ export default function Topbar() {
   };
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-gray-200/80 bg-white/90 px-6 shadow-sm backdrop-blur-md">
-      {/* Search */}
-      <div data-tour="topbar-search" className="relative w-full max-w-md">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-        <input
-          type="text"
-          placeholder="Buscar empleados, vacantes, documentos..."
-          className="input pl-10"
-        />
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-gray-200/80 bg-white/90 px-4 shadow-sm backdrop-blur-md lg:px-6">
+      {/* Left: Hamburger + Search */}
+      <div className="flex items-center gap-3">
+        {/* Hamburger — mobile only */}
+        <button
+          onClick={openMobile}
+          className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 lg:hidden"
+          aria-label="Abrir menú"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+
+        {/* Search */}
+        <div data-tour="topbar-search" className="relative w-full max-w-[200px] sm:max-w-md">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Buscar empleados, vacantes..."
+            className="input pl-10"
+          />
+        </div>
       </div>
 
       {/* Right section */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 sm:gap-4">
         {/* Role badge */}
         <span className={`hidden rounded-full px-2.5 py-0.5 text-xs font-medium sm:inline-block ${profileBadgeColor}`}>
           {profileLabel}

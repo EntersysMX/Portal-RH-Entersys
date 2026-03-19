@@ -79,7 +79,7 @@ export default function Settings() {
             <p className="text-sm text-gray-500">Datos generales de tu instalación</p>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-4 text-sm">
+        <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
           <div className="rounded-lg bg-gray-50 p-3">
             <p className="text-gray-500">Plataforma</p>
             <p className="font-semibold text-gray-900">EnterHR v1.0</p>
@@ -401,7 +401,7 @@ function GoogleWorkspaceCard({ onNavigate }: { onNavigate: () => void }) {
             Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client IDs
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700">Dominio</label>
             <input

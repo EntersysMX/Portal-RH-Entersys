@@ -51,8 +51,8 @@ export default function AdminCatalogs() {
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <nav className="flex gap-4" role="tablist">
+      <div className="border-b border-gray-200 overflow-x-auto">
+        <nav className="flex gap-4 min-w-max" role="tablist">
           {TABS.map((tab) => (
             <button
               key={tab.id}
@@ -483,7 +483,7 @@ function CompaniesTab({ search }: { search: string }) {
           {(createMut.isPending || updateMut.isPending) ? 'Guardando...' : 'Guardar'}
         </button></>
       }>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700">Nombre *</label>
             <input className="input" value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} />

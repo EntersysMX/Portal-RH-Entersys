@@ -61,7 +61,7 @@
   }
 
   .table-container {
-    @apply overflow-hidden rounded-xl border border-gray-200/80 bg-white ring-1 ring-gray-900/[0.04];
+    @apply overflow-x-auto rounded-xl border border-gray-200/80 bg-white ring-1 ring-gray-900/[0.04];
   }
 
   .table-container table {
@@ -73,11 +73,11 @@
   }
 
   .table-container th {
-    @apply px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500;
+    @apply px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 lg:px-6 lg:py-3.5;
   }
 
   .table-container td {
-    @apply whitespace-nowrap px-6 py-4 text-sm text-gray-700;
+    @apply px-3 py-3 text-sm text-gray-700 lg:px-6 lg:py-4;
   }
 
   .table-container tbody tr {
@@ -103,13 +103,13 @@
 
 /* Page heading accent — use on any page header for consistent look */
 .page-header {
-  @apply rounded-xl bg-gradient-to-r from-primary-600 to-primary-800 px-6 py-5 shadow-md;
+  @apply rounded-xl bg-gradient-to-r from-primary-600 to-primary-800 px-4 py-4 shadow-md lg:px-6 lg:py-5;
 }
 .page-header h1 {
-  @apply text-2xl font-bold text-white;
+  @apply text-xl font-bold text-white lg:text-2xl;
 }
 .page-header p {
-  @apply mt-1 text-primary-200;
+  @apply mt-1 text-sm text-primary-200 lg:text-base;
 }
 
 /* Custom scrollbar */

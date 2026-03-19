@@ -92,7 +92,7 @@ export default function AdminRoles() {
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Roles y Permisos</h1>
           <p className="mt-1 text-gray-500">
@@ -185,7 +185,7 @@ export default function AdminRoles() {
       >
         <div className="space-y-6">
           {/* Name & Description */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700">Nombre</label>
               <input

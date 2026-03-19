@@ -96,7 +96,7 @@ export default function Recruitment() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Reclutamiento</h1>
           <p className="mt-1 text-gray-500">Gestión de vacantes y candidatos</p>
@@ -289,7 +289,7 @@ export default function Recruitment() {
             <div className="flex items-center gap-2">
               <StatusBadge status={selectedOpening.status} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {selectedOpening.department && (
                 <div className="flex items-center gap-2 text-sm">
                   <Building2 className="h-4 w-4 text-gray-400" />
@@ -341,7 +341,7 @@ export default function Recruitment() {
         }
       >
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700">Título del puesto</label>
               <input className="input" value={newOpening.job_title} onChange={(e) => setNewOpening({ ...newOpening, job_title: e.target.value })} />

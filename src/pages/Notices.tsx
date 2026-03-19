@@ -96,7 +96,7 @@ export default function Notices() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Avisos</h1>
           <p className="mt-1 text-gray-500">Gestión de comunicados y avisos internos</p>
@@ -146,7 +146,7 @@ export default function Notices() {
             <label className="mb-1.5 block text-sm font-medium text-gray-700">Contenido</label>
             <textarea className="input min-h-[100px]" value={newNotice.content} onChange={(e) => setNewNotice({ ...newNotice, content: e.target.value })} placeholder="Escribe el contenido del aviso..." />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700">Tipo</label>
               <select className="input" value={newNotice.type} onChange={(e) => setNewNotice({ ...newNotice, type: e.target.value as Notice['type'] })}>

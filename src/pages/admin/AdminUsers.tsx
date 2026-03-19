@@ -91,7 +91,7 @@ export default function AdminUsers() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="card p-4 text-center">
           <p className="text-2xl font-bold text-primary-600">{employees?.length ?? 0}</p>
           <p className="text-sm text-gray-500">Empleados activos</p>

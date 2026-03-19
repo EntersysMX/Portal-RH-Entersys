@@ -219,16 +219,17 @@ export default function Employees() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Empleados</h1>
           <p className="mt-1 text-gray-500">Gestión del directorio de empleados</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2 sm:gap-3">
           <RoleGuard section="employees" action="create">
             <button onClick={() => setShowBulkUpload(true)} className="btn-secondary">
               <Upload className="h-4 w-4" />
-              Carga Masiva
+              <span className="hidden sm:inline">Carga Masiva</span>
+              <span className="sm:hidden">Masiva</span>
             </button>
           </RoleGuard>
           <RoleGuard section="employees" action="export">
@@ -240,7 +241,8 @@ export default function Employees() {
           <RoleGuard section="employees" action="create">
             <button onClick={() => setShowNewModal(true)} className="btn-primary">
               <Plus className="h-4 w-4" />
-              Nuevo Empleado
+              <span className="hidden sm:inline">Nuevo Empleado</span>
+              <span className="sm:hidden">Nuevo</span>
             </button>
           </RoleGuard>
         </div>
@@ -326,7 +328,7 @@ export default function Employees() {
           </>
         }
       >
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700">Nombre</label>
             <input

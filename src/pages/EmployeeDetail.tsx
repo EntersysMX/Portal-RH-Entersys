@@ -98,21 +98,21 @@ export default function EmployeeDetail() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <button onClick={() => navigate('/employees')} className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+        <button onClick={() => navigate('/employees')} className="self-start rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
           <ArrowLeft className="h-5 w-5" />
         </button>
         <div className="flex flex-1 items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary-100 text-primary-600">
+          <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-600">
             {emp.image ? (
               <img src={emp.image} alt="" className="h-14 w-14 rounded-full object-cover" />
             ) : (
               <User className="h-7 w-7" />
             )}
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">{emp.employee_name}</h1>
-            <p className="text-gray-500">{emp.designation} — {emp.department}</p>
+          <div className="min-w-0">
+            <h1 className="truncate text-2xl font-bold text-gray-900">{emp.employee_name}</h1>
+            <p className="truncate text-gray-500">{emp.designation} — {emp.department}</p>
             <div className="mt-1 flex flex-wrap gap-2">
               <StatusBadge status={emp.status} />
               <span className="badge badge-info">{emp.name}</span>
@@ -128,7 +128,7 @@ export default function EmployeeDetail() {
               toast.fromError(err);
             }
           }}
-          className="btn-secondary"
+          className="btn-secondary self-start sm:self-auto"
         >
           <Download className="h-4 w-4" />
           Ficha PDF

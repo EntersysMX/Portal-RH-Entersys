@@ -12,14 +12,16 @@ import {
   SlidersHorizontal,
 } from 'lucide-react';
 import { clsx } from 'clsx';
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useModuleStore } from '@/store/moduleStore';
 import { useSidebarOrder } from '@/hooks/useSidebarOrder';
+import { useSidebarState } from '@/hooks/useSidebarState';
 import type { MenuSection } from '@/lib/permissions';
 import type { ModuleNavItem } from '@/modules/types';
 import SidebarCustomizer from '@/components/sidebar/SidebarCustomizer';
 import BrandedLogo from '@/components/ui/BrandedLogo';
+import { useState } from 'react';
 
 interface NavItem {
   name: string;
@@ -61,7 +63,7 @@ const adminPanelNavigation: NavItem[] = [
 ];
 
 export default function Sidebar() {
-  const [collapsed, setCollapsed] = useState(false);
+  const { collapsed, mobileOpen, toggle, closeMobile } = useSidebarState();
   const [showCustomizer, setShowCustomizer] = useState(false);
   const { canAccess, isEmployeeOnly, profileLabel, profileBadgeColor } = usePermissions();
 
@@ -120,11 +122,24 @@ export default function Sidebar() {
   const visiblePortal = portalNav.filter((item) => canAccess(item.section));
   const visibleAdmin = isEmployeeOnly ? [] : adminNav.filter((item) => canAccess(item.section));
 
-  return (
+  // On mobile, clicking a nav link should close the sidebar
+  const handleNavClick = () => {
+    closeMobile();
+  };
+
+  // In desktop (>= lg): show as fixed sidebar with collapse
+  // In mobile (< lg): show as overlay when mobileOpen, hidden otherwise
+  // On mobile, sidebar is always full-width (w-64), never collapsed to icons
+  const sidebarContent = (
     <aside
       className={clsx(
         'fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-gray-200 bg-slate-50 transition-all duration-300',
-        collapsed ? 'w-[72px]' : 'w-64'
+        // Desktop: show always, respect collapsed
+        'max-lg:w-64',
+        // Desktop collapsed/expanded
+        collapsed ? 'lg:w-[72px]' : 'lg:w-64',
+        // Mobile: slide in/out
+        mobileOpen ? 'max-lg:translate-x-0' : 'max-lg:-translate-x-full'
       )}
     >
       {/* Sidebar Customizer overlay */}
@@ -134,8 +149,8 @@ export default function Sidebar() {
 
       {/* Logo — dynamic branding — area más grande */}
       <div data-tour="sidebar-logo" className="flex items-center border-b border-gray-200 bg-white px-4" style={{ minHeight: collapsed ? 64 : 72 }}>
-        {!collapsed && (
-          <div className="flex items-center gap-3 py-3">
+        {(!collapsed || mobileOpen) && (
+          <div className="flex items-center gap-3 py-3 lg:hidden">
             {branding.companyLogoUrl ? (
               <BrandedLogo src={branding.companyLogoUrl} size="lg" className="!h-11 !w-11" />
             ) : (
@@ -151,8 +166,27 @@ export default function Sidebar() {
             </div>
           </div>
         )}
+        {/* Desktop expanded */}
+        {!collapsed && (
+          <div className="hidden items-center gap-3 py-3 lg:flex">
+            {branding.companyLogoUrl ? (
+              <BrandedLogo src={branding.companyLogoUrl} size="lg" className="!h-11 !w-11" />
+            ) : (
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 shadow-sm">
+                <Users className="h-6 w-6 text-white" />
+              </div>
+            )}
+            <div>
+              <h1 className="text-lg font-bold text-gray-900 leading-tight">EnterHR</h1>
+              <p className="text-[10px] text-gray-400 leading-tight">
+                {branding.companyName || 'Plataforma de Capital Humano'}
+              </p>
+            </div>
+          </div>
+        )}
+        {/* Desktop collapsed */}
         {collapsed && (
-          <div className="mx-auto py-3">
+          <div className="mx-auto hidden py-3 lg:block">
             {branding.companyLogoUrl ? (
               <BrandedLogo src={branding.companyLogoUrl} size="md" />
             ) : (
@@ -164,9 +198,9 @@ export default function Sidebar() {
         )}
       </div>
 
-      {/* Role badge */}
-      {!collapsed && (
-        <div className="border-b border-gray-200 bg-white px-4 py-2">
+      {/* Role badge — show on mobile always, on desktop only when expanded */}
+      {(!collapsed || mobileOpen) && (
+        <div className={clsx('border-b border-gray-200 bg-white px-4 py-2', collapsed && 'lg:hidden')}>
           <span className={clsx('inline-block rounded-full px-2.5 py-0.5 text-xs font-medium', profileBadgeColor)}>
             {profileLabel}
           </span>
@@ -178,8 +212,8 @@ export default function Sidebar() {
         {/* Admin/HR sections (from modules) */}
         {visibleMain.length > 0 && (
           <>
-            {!collapsed && (
-              <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+            {(!collapsed || mobileOpen) && (
+              <p className={clsx('mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-gray-400', collapsed && 'lg:hidden')}>
                 Administración
               </p>
             )}
@@ -195,20 +229,22 @@ export default function Sidebar() {
                     to={item.href}
                     end={item.end}
                     data-tour={`nav-${tourId}`}
+                    onClick={handleNavClick}
                     className={({ isActive }) =>
                       clsx(
                         'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
                         isActive
                           ? `${activeBg} text-gray-900`
                           : 'text-gray-600 hover:bg-white hover:text-gray-900 hover:shadow-sm',
-                        collapsed && 'justify-center'
+                        collapsed && 'lg:justify-center'
                       )
                     }
                   >
                     {({ isActive }) => (
                       <>
                         <item.icon className={clsx('h-5 w-5 flex-shrink-0', isActive ? colors.active : colors.idle)} />
-                        {!collapsed && <span>{item.name}</span>}
+                        {/* Show text on mobile always; on desktop only when not collapsed */}
+                        <span className={clsx(collapsed && 'lg:hidden')}>{item.name}</span>
                       </>
                     )}
                   </NavLink>
@@ -226,8 +262,8 @@ export default function Sidebar() {
         {/* Portal de empleado */}
         {visiblePortal.length > 0 && (
           <>
-            {!collapsed && (
-              <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+            {(!collapsed || mobileOpen) && (
+              <p className={clsx('mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-gray-400', collapsed && 'lg:hidden')}>
                 {isEmployeeOnly ? 'Mi Portal' : 'Portal Empleado'}
               </p>
             )}
@@ -242,20 +278,21 @@ export default function Sidebar() {
                     to={item.href}
                     end={item.end}
                     data-tour={`nav-${item.section}`}
+                    onClick={handleNavClick}
                     className={({ isActive }) =>
                       clsx(
                         'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
                         isActive
                           ? `${activeBg} text-gray-900`
                           : 'text-gray-600 hover:bg-white hover:text-gray-900 hover:shadow-sm',
-                        collapsed && 'justify-center'
+                        collapsed && 'lg:justify-center'
                       )
                     }
                   >
                     {({ isActive }) => (
                       <>
                         <item.icon className={clsx('h-5 w-5 flex-shrink-0', isActive ? colors.active : colors.idle)} />
-                        {!collapsed && <span>{item.name}</span>}
+                        <span className={clsx(collapsed && 'lg:hidden')}>{item.name}</span>
                       </>
                     )}
                   </NavLink>
@@ -273,8 +310,8 @@ export default function Sidebar() {
         {/* Admin Panel */}
         {visibleAdmin.length > 0 && (
           <>
-            {!collapsed && (
-              <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+            {(!collapsed || mobileOpen) && (
+              <p className={clsx('mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-gray-400', collapsed && 'lg:hidden')}>
                 Panel Admin
               </p>
             )}
@@ -286,20 +323,21 @@ export default function Sidebar() {
                   <NavLink
                     key={item.href}
                     to={item.href}
+                    onClick={handleNavClick}
                     className={({ isActive }) =>
                       clsx(
                         'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
                         isActive
                           ? `${activeBg} text-gray-900`
                           : 'text-gray-600 hover:bg-white hover:text-gray-900 hover:shadow-sm',
-                        collapsed && 'justify-center'
+                        collapsed && 'lg:justify-center'
                       )
                     }
                   >
                     {({ isActive }) => (
                       <>
                         <item.icon className={clsx('h-5 w-5 flex-shrink-0', isActive ? colors.active : colors.idle)} />
-                        {!collapsed && <span>{item.name}</span>}
+                        <span className={clsx(collapsed && 'lg:hidden')}>{item.name}</span>
                       </>
                     )}
                   </NavLink>
@@ -312,24 +350,37 @@ export default function Sidebar() {
 
       {/* Bottom buttons */}
       <div className="border-t border-gray-200 bg-white p-3 space-y-1">
-        {/* Customize sidebar button (only when expanded) */}
-        {!collapsed && (
+        {/* Customize sidebar button (only when expanded or on mobile) */}
+        {(!collapsed || mobileOpen) && (
           <button
             onClick={() => setShowCustomizer(true)}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+            className={clsx('flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600', collapsed && 'lg:hidden')}
           >
             <SlidersHorizontal className="h-4 w-4" />
             <span>Personalizar</span>
           </button>
         )}
-        {/* Collapse button */}
+        {/* Collapse button — desktop only */}
         <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="flex w-full items-center justify-center rounded-lg py-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+          onClick={toggle}
+          className="hidden w-full items-center justify-center rounded-lg py-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 lg:flex"
         >
           {collapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
         </button>
       </div>
     </aside>
+  );
+
+  return (
+    <>
+      {/* Backdrop for mobile */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm lg:hidden"
+          onClick={closeMobile}
+        />
+      )}
+      {sidebarContent}
+    </>
   );
 }
