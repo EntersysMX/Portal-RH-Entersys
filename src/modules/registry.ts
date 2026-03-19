@@ -2,6 +2,8 @@ import {
   LayoutDashboard, Users, Briefcase, Target, CalendarCheck,
   DollarSign, Calculator, Receipt, GraduationCap, Building2,
   Bell, Home, User, Landmark, Globe,
+  ClipboardList, HeartHandshake, ShieldPlus, Scale,
+  ArrowLeftRight, PieChart, HardHat, UserCheck,
 } from 'lucide-react';
 import type { ModuleDefinition, ModuleManifest } from './types';
 
@@ -207,6 +209,112 @@ export const ALL_MODULES: ModuleDefinition[] = [
       { label: 'Avisos', path: '/notices', icon: Bell, section: 'notices' },
     ],
   },
+  // ===== HR EXTENDED =====
+  {
+    id: 'encuestas',
+    label: 'Encuestas',
+    description: 'Motor genérico de encuestas configurables para la empresa',
+    details: 'Motor genérico de encuestas configurables: N preguntas (abiertas, opción múltiple, escala Likert 1-5), asignar a departamentos o toda la empresa, anonimato configurable, fecha de vencimiento, dashboard de resultados con tasa de participación y distribución de respuestas.',
+    icon: ClipboardList,
+    category: 'hr',
+    sections: ['surveys'],
+    permissions: standardPerms('encuestas', 'encuestas'),
+    navItems: [
+      { label: 'Encuestas', path: '/surveys', icon: ClipboardList, section: 'surveys' },
+    ],
+  },
+  {
+    id: 'clima-laboral',
+    label: 'Clima Laboral',
+    description: 'Dashboard de clima laboral con métricas de satisfacción',
+    details: 'Panel especializado de clima laboral con plantillas pre-configuradas por categorías (Ambiente de Trabajo, Comunicación, Liderazgo, Desarrollo Profesional, Compensación), dashboard con promedios, tendencias mensuales, comparativos por departamento y alertas de áreas que requieren atención.',
+    icon: HeartHandshake,
+    category: 'talent',
+    sections: ['work-climate'],
+    permissions: makePerms('clima-laboral', { read: 'Ver clima laboral', export: 'Exportar reportes' }),
+    navItems: [
+      { label: 'Clima Laboral', path: '/work-climate', icon: HeartHandshake, section: 'work-climate' },
+    ],
+  },
+  {
+    id: 'incapacidades',
+    label: 'Incapacidades',
+    description: 'Control de incapacidades médicas y seguimiento',
+    details: 'Control de incapacidades médicas: registro por tipo (enfermedad general, riesgo de trabajo, maternidad/paternidad), folio IMSS o certificado médico, seguimiento de días y costos estimados, dashboard con incapacidades activas, total de días perdidos y tendencia mensual.',
+    icon: ShieldPlus,
+    category: 'hr',
+    sections: ['disabilities'],
+    permissions: standardPerms('incapacidades', 'incapacidades'),
+    navItems: [
+      { label: 'Incapacidades', path: '/disabilities', icon: ShieldPlus, section: 'disabilities' },
+    ],
+  },
+  {
+    id: 'disciplina',
+    label: 'Disciplina',
+    description: 'Gestión de amonestaciones y actas administrativas',
+    details: 'Gestión de amonestaciones y actas administrativas con escalamiento progresivo: amonestación verbal, escrita 1, escrita 2, suspensión 1 día, suspensión 3 días. Categorías configurables (EPP, inocuidad, conducta, puntualidad), historial completo por empleado y reporte de tendencias.',
+    icon: Scale,
+    category: 'hr',
+    sections: ['discipline'],
+    permissions: standardPerms('disciplina', 'disciplina'),
+    navItems: [
+      { label: 'Disciplina', path: '/discipline', icon: Scale, section: 'discipline' },
+    ],
+  },
+  {
+    id: 'rotacion',
+    label: 'Rotación y Retención',
+    description: 'Dashboard ejecutivo de rotación y retención de personal',
+    details: 'Dashboard ejecutivo de rotación y retención. Calcula tasas de rotación, compara altas vs bajas por mes y departamento, desglosa motivos de baja (renuncia, despido, jubilación, abandono), muestra duración promedio del empleado y permite comparar indicadores entre años.',
+    icon: ArrowLeftRight,
+    category: 'talent',
+    sections: ['turnover'],
+    permissions: makePerms('rotacion', { read: 'Ver rotación', export: 'Exportar reportes' }),
+    navItems: [
+      { label: 'Rotación', path: '/turnover', icon: ArrowLeftRight, section: 'turnover' },
+    ],
+  },
+  {
+    id: 'people-analytics',
+    label: 'People Analytics',
+    description: 'Panel avanzado de analítica de personas para dirección',
+    details: 'Panel avanzado de People Analytics para dirección y RRHH. Indicadores demográficos (distribución por género, rangos de edad, antigüedad promedio), indicadores financieros (costo planilla, sueldo promedio por departamento y género), distribución por área y análisis de equidad salarial.',
+    icon: PieChart,
+    category: 'talent',
+    sections: ['people-analytics'],
+    permissions: makePerms('people-analytics', { read: 'Ver People Analytics', export: 'Exportar reportes' }),
+    navItems: [
+      { label: 'People Analytics', path: '/people-analytics', icon: PieChart, section: 'people-analytics' },
+    ],
+  },
+  {
+    id: 'equipamiento',
+    label: 'Equipamiento',
+    description: 'Control de equipamiento y activos asignados al personal',
+    details: 'Control de equipamiento y activos asignados: EPP (equipo de protección personal), uniformes, herramientas y equipo de cómputo. Registro de asignación y devolución con fechas, seguimiento de equipo pendiente de devolver en bajas y catálogo configurable de tipos de equipo.',
+    icon: HardHat,
+    category: 'hr',
+    sections: ['equipment'],
+    permissions: standardPerms('equipamiento', 'equipamiento'),
+    navItems: [
+      { label: 'Equipamiento', path: '/equipment', icon: HardHat, section: 'equipment' },
+    ],
+  },
+  {
+    id: 'onboarding',
+    label: 'Onboarding',
+    description: 'Gestión de procesos de integración y salida de personal',
+    details: 'Gestión de procesos de integración (onboarding) y salida (offboarding) con checklists configurables. Onboarding: documentos, cuentas, equipo, capacitación inicial. Offboarding: devolución de equipo, desactivación de accesos, entrevista de salida. Seguimiento visual con barra de progreso.',
+    icon: UserCheck,
+    category: 'hr',
+    sections: ['onboarding'],
+    permissions: standardPerms('onboarding', 'onboarding'),
+    navItems: [
+      { label: 'Onboarding', path: '/onboarding', icon: UserCheck, section: 'onboarding' },
+    ],
+  },
+
   // ===== PORTAL EMPLEADO =====
   {
     id: 'portal',

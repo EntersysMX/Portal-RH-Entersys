@@ -36,6 +36,15 @@ export type MenuSection =
   | 'settings'
   | 'notices'
   | 'google-sync'
+  // HR Extended
+  | 'surveys'
+  | 'work-climate'
+  | 'disabilities'
+  | 'discipline'
+  | 'turnover'
+  | 'people-analytics'
+  | 'equipment'
+  | 'onboarding'
   // Admin panel
   | 'admin-modules'
   | 'admin-roles'
@@ -60,6 +69,9 @@ const PROFILE_MENU_ACCESS: Record<UserProfile, MenuSection[]> = {
     'dashboard', 'employees', 'employee-detail', 'recruitment', 'performance',
     'attendance', 'payroll', 'nomina-mx', 'nomina-usa', 'nomina-col', 'expenses',
     'training', 'organization', 'settings', 'notices', 'google-sync',
+    // HR Extended
+    'surveys', 'work-climate', 'disabilities', 'discipline',
+    'turnover', 'people-analytics', 'equipment', 'onboarding',
     // Admin panel
     'admin-modules', 'admin-roles', 'admin-users', 'admin-catalogs', 'admin-platform',
     // Admin también puede ver el portal
@@ -70,11 +82,16 @@ const PROFILE_MENU_ACCESS: Record<UserProfile, MenuSection[]> = {
     'dashboard', 'employees', 'employee-detail', 'recruitment', 'performance',
     'attendance', 'payroll', 'nomina-mx', 'nomina-usa', 'nomina-col', 'expenses',
     'training', 'organization', 'notices',
+    // HR Extended
+    'surveys', 'work-climate', 'disabilities', 'discipline',
+    'turnover', 'people-analytics', 'equipment', 'onboarding',
     'portal', 'my-profile', 'my-payslips', 'my-attendance',
     'my-training', 'my-organization', 'my-notices',
   ],
   hr_user: [
     'dashboard', 'employees', 'employee-detail', 'attendance', 'payroll', 'organization', 'notices',
+    // HR Extended (limited)
+    'surveys', 'disabilities', 'discipline', 'equipment', 'onboarding',
     'portal', 'my-profile', 'my-payslips', 'my-attendance',
     'my-training', 'my-organization', 'my-notices',
   ],

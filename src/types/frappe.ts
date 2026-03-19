@@ -229,6 +229,112 @@ export interface TrainingEvent {
   employees: { employee: string; employee_name: string }[];
 }
 
+// ============================================
+// SURVEY / ENCUESTAS
+// ============================================
+export interface Survey {
+  name: string;
+  title: string;
+  description?: string;
+  survey_type: 'General' | 'Clima Laboral' | 'Satisfacción' | 'Salida' | 'Otro';
+  is_anonymous: boolean;
+  status: 'Draft' | 'Active' | 'Closed';
+  start_date?: string;
+  end_date?: string;
+  target_audience: 'all' | string;
+  questions: SurveyQuestion[];
+  creation?: string;
+}
+
+export interface SurveyQuestion {
+  idx: number;
+  question_text: string;
+  question_type: 'open' | 'multiple_choice' | 'likert';
+  options?: string;
+  required: boolean;
+}
+
+export interface SurveyResponse {
+  name: string;
+  survey: string;
+  employee?: string;
+  employee_name?: string;
+  submitted_at: string;
+  answers: { question_idx: number; answer: string }[];
+}
+
+// ============================================
+// INCAPACIDADES
+// ============================================
+export interface Incapacity {
+  name: string;
+  employee: string;
+  employee_name: string;
+  incapacity_type: 'Enfermedad General' | 'Riesgo de Trabajo' | 'Maternidad' | 'Paternidad';
+  folio?: string;
+  start_date: string;
+  end_date: string;
+  days: number;
+  estimated_cost?: number;
+  status: 'Active' | 'Completed' | 'Cancelled';
+  notes?: string;
+  creation?: string;
+}
+
+// ============================================
+// DISCIPLINA
+// ============================================
+export interface DisciplinaryAction {
+  name: string;
+  employee: string;
+  employee_name: string;
+  date: string;
+  category: 'EPP' | 'Inocuidad' | 'Conducta' | 'Puntualidad' | 'Otro';
+  reason: string;
+  sanction_type: 'Verbal' | 'Escrita 1' | 'Escrita 2' | 'Suspensión 1d' | 'Suspensión 3d';
+  status: 'Active' | 'Resolved' | 'Cancelled';
+  notes?: string;
+  creation?: string;
+}
+
+// ============================================
+// EQUIPAMIENTO
+// ============================================
+export interface EquipmentAssignment {
+  name: string;
+  employee: string;
+  employee_name: string;
+  equipment_type: 'Casco' | 'Chaleco' | 'Botas' | 'Guantes' | 'Uniforme' | 'Laptop' | 'Otro';
+  description?: string;
+  assigned_date: string;
+  return_date?: string;
+  status: 'Asignado' | 'Devuelto' | 'Extraviado';
+  notes?: string;
+  creation?: string;
+}
+
+// ============================================
+// ONBOARDING / OFFBOARDING
+// ============================================
+export interface OnboardingChecklist {
+  name: string;
+  employee: string;
+  employee_name: string;
+  checklist_type: 'Onboarding' | 'Offboarding';
+  status: 'In Progress' | 'Completed' | 'Cancelled';
+  progress: number;
+  items: OnboardingItem[];
+  creation?: string;
+}
+
+export interface OnboardingItem {
+  idx: number;
+  title: string;
+  is_completed: boolean;
+  completed_date?: string;
+  notes?: string;
+}
+
 // Dashboard stats
 export interface DashboardStats {
   total_employees: number;

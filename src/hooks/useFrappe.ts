@@ -21,6 +21,12 @@ import {
   employeeDocumentService,
   noticeService,
   employeeProfileService,
+  surveyService,
+  incapacityService,
+  disciplineService,
+  equipmentService,
+  onboardingService,
+  analyticsService,
 } from '@/api/services';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from '@/components/ui/Toast';
@@ -656,5 +662,237 @@ export function useDeleteEmployeeDocument() {
     mutationFn: employeeDocumentService.delete,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['employee-documents'] }),
     onError: (error) => toast.fromError(error),
+  });
+}
+
+// ============================================
+// SURVEYS (Encuestas)
+// ============================================
+export function useSurveys(filters?: Record<string, unknown>) {
+  return useQuery({
+    queryKey: ['surveys', filters],
+    queryFn: () => surveyService.list({ filters }),
+    staleTime: 30_000,
+  });
+}
+
+export function useSurvey(name: string) {
+  return useQuery({
+    queryKey: ['survey', name],
+    queryFn: () => surveyService.get(name),
+    enabled: !!name,
+    staleTime: 60_000,
+  });
+}
+
+export function useCreateSurvey() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: surveyService.create,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['surveys'] }),
+    onError: (error) => toast.fromError(error),
+  });
+}
+
+export function useUpdateSurvey() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ name, data }: { name: string; data: Record<string, unknown> }) =>
+      surveyService.update(name, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['surveys'] }),
+    onError: (error) => toast.fromError(error),
+  });
+}
+
+export function useDeleteSurvey() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: surveyService.delete,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['surveys'] }),
+    onError: (error) => toast.fromError(error),
+  });
+}
+
+export function useSurveyResponses(surveyName: string) {
+  return useQuery({
+    queryKey: ['survey-responses', surveyName],
+    queryFn: () => surveyService.listResponses(surveyName),
+    enabled: !!surveyName,
+    staleTime: 30_000,
+  });
+}
+
+// ============================================
+// INCAPACITIES (Incapacidades)
+// ============================================
+export function useIncapacities(filters?: Record<string, unknown>) {
+  return useQuery({
+    queryKey: ['incapacities', filters],
+    queryFn: () => incapacityService.list({ filters }),
+    staleTime: 30_000,
+  });
+}
+
+export function useCreateIncapacity() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: incapacityService.create,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['incapacities'] }),
+    onError: (error) => toast.fromError(error),
+  });
+}
+
+export function useUpdateIncapacity() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ name, data }: { name: string; data: Record<string, unknown> }) =>
+      incapacityService.update(name, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['incapacities'] }),
+    onError: (error) => toast.fromError(error),
+  });
+}
+
+export function useDeleteIncapacity() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: incapacityService.delete,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['incapacities'] }),
+    onError: (error) => toast.fromError(error),
+  });
+}
+
+// ============================================
+// DISCIPLINE (Disciplina)
+// ============================================
+export function useDisciplinaryActions(filters?: Record<string, unknown>) {
+  return useQuery({
+    queryKey: ['disciplinary-actions', filters],
+    queryFn: () => disciplineService.list({ filters }),
+    staleTime: 30_000,
+  });
+}
+
+export function useCreateDisciplinaryAction() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: disciplineService.create,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['disciplinary-actions'] }),
+    onError: (error) => toast.fromError(error),
+  });
+}
+
+export function useUpdateDisciplinaryAction() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ name, data }: { name: string; data: Record<string, unknown> }) =>
+      disciplineService.update(name, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['disciplinary-actions'] }),
+    onError: (error) => toast.fromError(error),
+  });
+}
+
+export function useDeleteDisciplinaryAction() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: disciplineService.delete,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['disciplinary-actions'] }),
+    onError: (error) => toast.fromError(error),
+  });
+}
+
+// ============================================
+// EQUIPMENT (Equipamiento)
+// ============================================
+export function useEquipmentAssignments(filters?: Record<string, unknown>) {
+  return useQuery({
+    queryKey: ['equipment-assignments', filters],
+    queryFn: () => equipmentService.list({ filters }),
+    staleTime: 30_000,
+  });
+}
+
+export function useCreateEquipmentAssignment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: equipmentService.create,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['equipment-assignments'] }),
+    onError: (error) => toast.fromError(error),
+  });
+}
+
+export function useUpdateEquipmentAssignment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ name, data }: { name: string; data: Record<string, unknown> }) =>
+      equipmentService.update(name, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['equipment-assignments'] }),
+    onError: (error) => toast.fromError(error),
+  });
+}
+
+export function useDeleteEquipmentAssignment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: equipmentService.delete,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['equipment-assignments'] }),
+    onError: (error) => toast.fromError(error),
+  });
+}
+
+// ============================================
+// ONBOARDING
+// ============================================
+export function useOnboardingChecklists(filters?: Record<string, unknown>) {
+  return useQuery({
+    queryKey: ['onboarding-checklists', filters],
+    queryFn: () => onboardingService.list({ filters }),
+    staleTime: 30_000,
+  });
+}
+
+export function useCreateOnboardingChecklist() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: onboardingService.create,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['onboarding-checklists'] }),
+    onError: (error) => toast.fromError(error),
+  });
+}
+
+export function useUpdateOnboardingChecklist() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ name, data }: { name: string; data: Record<string, unknown> }) =>
+      onboardingService.update(name, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['onboarding-checklists'] }),
+    onError: (error) => toast.fromError(error),
+  });
+}
+
+export function useDeleteOnboardingChecklist() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: onboardingService.delete,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['onboarding-checklists'] }),
+    onError: (error) => toast.fromError(error),
+  });
+}
+
+// ============================================
+// ANALYTICS (People Analytics / Rotación)
+// ============================================
+export function useAllEmployeesAnalytics() {
+  return useQuery({
+    queryKey: ['analytics-employees'],
+    queryFn: analyticsService.allEmployees,
+    staleTime: 120_000,
+  });
+}
+
+export function useAllSalarySlipsAnalytics(filters?: Record<string, unknown>) {
+  return useQuery({
+    queryKey: ['analytics-salary-slips', filters],
+    queryFn: () => analyticsService.allSalarySlips(filters),
+    staleTime: 120_000,
   });
 }

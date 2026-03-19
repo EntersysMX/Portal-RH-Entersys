@@ -23,6 +23,15 @@ import NominaCol from '@/pages/NominaCol';
 import EmployeeDetail from '@/pages/EmployeeDetail';
 import Notices from '@/pages/Notices';
 import GoogleSync from '@/pages/GoogleSync';
+// New HR modules
+import Surveys from '@/pages/Surveys';
+import WorkClimate from '@/pages/WorkClimate';
+import Disabilities from '@/pages/Disabilities';
+import Discipline from '@/pages/Discipline';
+import Turnover from '@/pages/Turnover';
+import PeopleAnalytics from '@/pages/PeopleAnalytics';
+import EquipmentPage from '@/pages/Equipment';
+import OnboardingPage from '@/pages/Onboarding';
 // Admin panel
 import AdminModules from '@/pages/admin/AdminModules';
 import AdminRoles from '@/pages/admin/AdminRoles';
@@ -261,6 +270,72 @@ export default function App() {
               element={
                 <ProtectedRoute requiredSection="google-sync">
                   <GoogleSync />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* ========== HR Extended Modules ========== */}
+            <Route
+              path="surveys"
+              element={
+                <ProtectedRoute requiredSection="surveys">
+                  <Surveys />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="work-climate"
+              element={
+                <ProtectedRoute requiredSection="work-climate">
+                  <WorkClimate />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="disabilities"
+              element={
+                <ProtectedRoute requiredSection="disabilities">
+                  <Disabilities />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="discipline"
+              element={
+                <ProtectedRoute requiredSection="discipline">
+                  <Discipline />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="turnover"
+              element={
+                <ProtectedRoute requiredSection="turnover">
+                  <Turnover />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="people-analytics"
+              element={
+                <ProtectedRoute requiredSection="people-analytics">
+                  <PeopleAnalytics />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="equipment"
+              element={
+                <ProtectedRoute requiredSection="equipment">
+                  <EquipmentPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="onboarding"
+              element={
+                <ProtectedRoute requiredSection="onboarding">
+                  <OnboardingPage />
                 </ProtectedRoute>
               }
             />

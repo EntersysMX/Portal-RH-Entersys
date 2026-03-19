@@ -31,6 +31,12 @@ import type {
   EmployeeFullProfile,
   FrappeFile,
   Notice,
+  Survey,
+  SurveyResponse,
+  Incapacity,
+  DisciplinaryAction,
+  EquipmentAssignment,
+  OnboardingChecklist,
 } from '@/types/frappe';
 
 // ============================================
@@ -608,6 +614,161 @@ export const payrollServiceExtended = {
   listSlipsWithDemo: (params?: { filters?: Record<string, unknown>; limit?: number; offset?: number }) => {
     return payrollService.listSlips(params);
   },
+};
+
+// ============================================
+// SURVEY SERVICE (Encuestas)
+// ============================================
+export const surveyService = {
+  list: (params?: { filters?: Record<string, unknown>; limit?: number }) =>
+    frappeGetList<Survey>({
+      doctype: 'Survey',
+      fields: ['*'],
+      filters: params?.filters,
+      limit_page_length: params?.limit || 50,
+      order_by: 'creation desc',
+    }),
+
+  get: (name: string) => frappeGetDoc<Survey>('Survey', name),
+
+  create: (data: Partial<Survey>) => frappeCreateDoc<Survey>('Survey', data),
+
+  update: (name: string, data: Partial<Survey>) =>
+    frappeUpdateDoc<Survey>('Survey', name, data),
+
+  delete: (name: string) => frappeDeleteDoc('Survey', name),
+
+  listResponses: (surveyName: string) =>
+    frappeGetList<SurveyResponse>({
+      doctype: 'Survey Response',
+      fields: ['*'],
+      filters: { survey: surveyName },
+      limit_page_length: 500,
+      order_by: 'submitted_at desc',
+    }),
+
+  submitResponse: (data: Partial<SurveyResponse>) =>
+    frappeCreateDoc<SurveyResponse>('Survey Response', data),
+};
+
+// ============================================
+// INCAPACITY SERVICE (Incapacidades)
+// ============================================
+export const incapacityService = {
+  list: (params?: { filters?: Record<string, unknown>; limit?: number }) =>
+    frappeGetList<Incapacity>({
+      doctype: 'Incapacity',
+      fields: ['*'],
+      filters: params?.filters,
+      limit_page_length: params?.limit || 50,
+      order_by: 'start_date desc',
+    }),
+
+  get: (name: string) => frappeGetDoc<Incapacity>('Incapacity', name),
+
+  create: (data: Partial<Incapacity>) => frappeCreateDoc<Incapacity>('Incapacity', data),
+
+  update: (name: string, data: Partial<Incapacity>) =>
+    frappeUpdateDoc<Incapacity>('Incapacity', name, data),
+
+  delete: (name: string) => frappeDeleteDoc('Incapacity', name),
+};
+
+// ============================================
+// DISCIPLINE SERVICE (Disciplina)
+// ============================================
+export const disciplineService = {
+  list: (params?: { filters?: Record<string, unknown>; limit?: number }) =>
+    frappeGetList<DisciplinaryAction>({
+      doctype: 'Disciplinary Action',
+      fields: ['*'],
+      filters: params?.filters,
+      limit_page_length: params?.limit || 50,
+      order_by: 'date desc',
+    }),
+
+  get: (name: string) => frappeGetDoc<DisciplinaryAction>('Disciplinary Action', name),
+
+  create: (data: Partial<DisciplinaryAction>) =>
+    frappeCreateDoc<DisciplinaryAction>('Disciplinary Action', data),
+
+  update: (name: string, data: Partial<DisciplinaryAction>) =>
+    frappeUpdateDoc<DisciplinaryAction>('Disciplinary Action', name, data),
+
+  delete: (name: string) => frappeDeleteDoc('Disciplinary Action', name),
+};
+
+// ============================================
+// EQUIPMENT SERVICE (Equipamiento)
+// ============================================
+export const equipmentService = {
+  list: (params?: { filters?: Record<string, unknown>; limit?: number }) =>
+    frappeGetList<EquipmentAssignment>({
+      doctype: 'Equipment Assignment',
+      fields: ['*'],
+      filters: params?.filters,
+      limit_page_length: params?.limit || 50,
+      order_by: 'assigned_date desc',
+    }),
+
+  get: (name: string) => frappeGetDoc<EquipmentAssignment>('Equipment Assignment', name),
+
+  create: (data: Partial<EquipmentAssignment>) =>
+    frappeCreateDoc<EquipmentAssignment>('Equipment Assignment', data),
+
+  update: (name: string, data: Partial<EquipmentAssignment>) =>
+    frappeUpdateDoc<EquipmentAssignment>('Equipment Assignment', name, data),
+
+  delete: (name: string) => frappeDeleteDoc('Equipment Assignment', name),
+};
+
+// ============================================
+// ONBOARDING SERVICE
+// ============================================
+export const onboardingService = {
+  list: (params?: { filters?: Record<string, unknown>; limit?: number }) =>
+    frappeGetList<OnboardingChecklist>({
+      doctype: 'Onboarding Checklist',
+      fields: ['*'],
+      filters: params?.filters,
+      limit_page_length: params?.limit || 50,
+      order_by: 'creation desc',
+    }),
+
+  get: (name: string) => frappeGetDoc<OnboardingChecklist>('Onboarding Checklist', name),
+
+  create: (data: Partial<OnboardingChecklist>) =>
+    frappeCreateDoc<OnboardingChecklist>('Onboarding Checklist', data),
+
+  update: (name: string, data: Partial<OnboardingChecklist>) =>
+    frappeUpdateDoc<OnboardingChecklist>('Onboarding Checklist', name, data),
+
+  delete: (name: string) => frappeDeleteDoc('Onboarding Checklist', name),
+};
+
+// ============================================
+// ANALYTICS SERVICE (People Analytics / Rotación)
+// Calcula métricas client-side desde Employee y SalarySlip
+// ============================================
+export const analyticsService = {
+  /** All employees for analytics (large fetch) */
+  allEmployees: () =>
+    frappeGetList<Employee>({
+      doctype: 'Employee',
+      fields: ['name', 'employee_name', 'status', 'gender', 'date_of_birth', 'date_of_joining',
+        'relieving_date', 'department', 'designation', 'company', 'reason_for_leaving', 'ctc'],
+      limit_page_length: 0, // all
+    }),
+
+  /** All salary slips for cost analytics */
+  allSalarySlips: (filters?: Record<string, unknown>) =>
+    frappeGetList<SalarySlip>({
+      doctype: 'Salary Slip',
+      fields: ['employee', 'employee_name', 'department', 'gross_pay', 'net_pay', 'total_deduction',
+        'posting_date', 'start_date', 'end_date', 'status'],
+      filters: { status: 'Submitted', ...filters },
+      limit_page_length: 0,
+    }),
 };
 
 // ============================================
