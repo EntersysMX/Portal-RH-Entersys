@@ -169,6 +169,15 @@ export async function seedDemoData(onProgress: ProgressCallback): Promise<DemoTr
   tracker.company = company;
 
   // ─── 2. DEPARTMENT & DESIGNATION ──────────────────────
+  // Frappe appends company abbreviation to department names (e.g., "Tecnología - ENTS")
+  let companyAbbr = '';
+  try {
+    const companies = await companyService.list();
+    const co = companies.find((c) => c.name === company);
+    companyAbbr = co?.abbr || '';
+  } catch { /* ignore */ }
+  const dept = companyAbbr ? `Tecnología - ${companyAbbr}` : 'Tecnología';
+
   await tryOp(
     () => catalogService.ensureExists('Department', { department_name: 'Tecnología', company }),
     onProgress,
@@ -176,7 +185,7 @@ export async function seedDemoData(onProgress: ProgressCallback): Promise<DemoTr
   );
 
   await tryOp(
-    () => catalogService.ensureExists('Designation', { designation: 'Desarrolladora Full Stack' }),
+    () => catalogService.ensureExists('Designation', { designation_name: 'Desarrolladora Full Stack' }),
     onProgress,
     'Puesto: Desarrolladora Full Stack',
   );
@@ -191,7 +200,7 @@ export async function seedDemoData(onProgress: ProgressCallback): Promise<DemoTr
       date_of_birth: '1993-03-15',
       date_of_joining: '2023-01-15',
       company,
-      department: 'Tecnología',
+      department: dept,
       designation: 'Desarrolladora Full Stack',
       status: 'Active',
       cell_phone: '+52 55 1234 5678',
