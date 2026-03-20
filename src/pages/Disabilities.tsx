@@ -5,7 +5,7 @@ import StatsCard from '@/components/ui/StatsCard';
 import DataTable, { Column } from '@/components/ui/DataTable';
 import Modal from '@/components/ui/Modal';
 import RoleGuard from '@/components/auth/RoleGuard';
-import { useIncapacities, useCreateIncapacity } from '@/hooks/useFrappe';
+import { useIncapacities, useCreateIncapacity, useUpdateIncapacity, useDeleteIncapacity } from '@/hooks/useFrappe';
 import { toast } from '@/components/ui/Toast';
 import type { Incapacity } from '@/types/frappe';
 
@@ -22,21 +22,35 @@ const STATUS_COLORS: Record<string, string> = {
   Cancelled: 'bg-red-100 text-red-600',
 };
 
+const STATUS_LABELS: Record<string, string> = {
+  Active: 'Activa',
+  Completed: 'Completada',
+  Cancelled: 'Cancelada',
+};
+
+const emptyForm = {
+  employee: '',
+  employee_name: '',
+  incapacity_type: 'Enfermedad General' as Incapacity['incapacity_type'],
+  folio: '',
+  start_date: '',
+  end_date: '',
+  days: 0,
+  estimated_cost: 0,
+  notes: '',
+};
+
 export default function Disabilities() {
   const { data: incapacities, isLoading, isError, refetch } = useIncapacities();
   const createMutation = useCreateIncapacity();
-  const [showNewModal, setShowNewModal] = useState(false);
-  const [form, setForm] = useState({
-    employee: '',
-    employee_name: '',
-    incapacity_type: 'Enfermedad General' as Incapacity['incapacity_type'],
-    folio: '',
-    start_date: '',
-    end_date: '',
-    days: 0,
-    estimated_cost: 0,
-    notes: '',
-  });
+  const updateMutation = useUpdateIncapacity();
+  const deleteMutation = useDeleteIncapacity();
+
+  const [showModal, setShowModal] = useState(false);
+  const [editingItem, setEditingItem] = useState<Incapacity | null>(null);
+  const [form, setForm] = useState({ ...emptyForm });
+
+  const isSaving = createMutation.isPending || updateMutation.isPending;
 
   const activeCount = incapacities?.filter((i) => i.status === 'Active').length ?? 0;
   const totalDays = incapacities?.reduce((sum, i) => sum + (i.days || 0), 0) ?? 0;
@@ -44,6 +58,77 @@ export default function Disabilities() {
   const typeCount: Record<string, number> = {};
   incapacities?.forEach((i) => { typeCount[i.incapacity_type] = (typeCount[i.incapacity_type] || 0) + 1; });
   const topType = Object.entries(typeCount).sort((a, b) => b[1] - a[1])[0]?.[0] ?? '—';
+
+  const openCreateModal = () => {
+    setEditingItem(null);
+    setForm({ ...emptyForm });
+    setShowModal(true);
+  };
+
+  const openEditModal = (item: Incapacity) => {
+    setEditingItem(item);
+    setForm({
+      employee: item.employee,
+      employee_name: item.employee_name,
+      incapacity_type: item.incapacity_type,
+      folio: item.folio ?? '',
+      start_date: item.start_date,
+      end_date: item.end_date,
+      days: item.days,
+      estimated_cost: item.estimated_cost ?? 0,
+      notes: item.notes ?? '',
+    });
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setEditingItem(null);
+    setForm({ ...emptyForm });
+  };
+
+  const handleSave = async () => {
+    try {
+      if (editingItem) {
+        await updateMutation.mutateAsync({
+          name: editingItem.name,
+          data: { ...form },
+        });
+        toast.success('Incapacidad actualizada', 'Los cambios se guardaron correctamente.');
+      } else {
+        await createMutation.mutateAsync({
+          ...form,
+          status: 'Active',
+        } as Partial<Incapacity>);
+        toast.success('Incapacidad registrada', 'Se registró correctamente.');
+      }
+      closeModal();
+    } catch (err) {
+      toast.fromError(err);
+    }
+  };
+
+  const handleDelete = async (name: string) => {
+    if (!window.confirm('¿Estás seguro de eliminar esta incapacidad? Esta acción no se puede deshacer.')) return;
+    try {
+      await deleteMutation.mutateAsync(name);
+      toast.success('Incapacidad eliminada', 'Se eliminó correctamente.');
+    } catch (err) {
+      toast.fromError(err);
+    }
+  };
+
+  const handleStatusChange = async (item: Incapacity, newStatus: Incapacity['status']) => {
+    try {
+      await updateMutation.mutateAsync({
+        name: item.name,
+        data: { status: newStatus },
+      });
+      toast.success('Estado actualizado', `La incapacidad ahora está ${STATUS_LABELS[newStatus]?.toLowerCase() ?? newStatus}.`);
+    } catch (err) {
+      toast.fromError(err);
+    }
+  };
 
   const columns: Column<Incapacity>[] = [
     { key: 'employee_name', header: 'Empleado', render: (i) => <p className="font-medium text-gray-900">{i.employee_name}</p> },
@@ -57,32 +142,40 @@ export default function Disabilities() {
     { key: 'days', header: 'Días', render: (i) => <span className="font-medium">{i.days}</span> },
     {
       key: 'status', header: 'Estado',
-      render: (i) => <span className={clsx('rounded-full px-2 py-0.5 text-xs font-medium', STATUS_COLORS[i.status])}>{i.status}</span>,
+      render: (i) => (
+        <select
+          className={clsx('cursor-pointer rounded-full border-0 px-2 py-0.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-400', STATUS_COLORS[i.status])}
+          value={i.status}
+          onChange={(e) => handleStatusChange(i, e.target.value as Incapacity['status'])}
+        >
+          <option value="Active">Activa</option>
+          <option value="Completed">Completada</option>
+          <option value="Cancelled">Cancelada</option>
+        </select>
+      ),
     },
     {
       key: 'actions', header: 'Acciones',
-      render: () => (
+      render: (item) => (
         <div className="flex gap-1">
-          <button className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"><Edit className="h-4 w-4" /></button>
-          <button className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
+          <button
+            onClick={() => openEditModal(item)}
+            className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            title="Editar"
+          >
+            <Edit className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => handleDelete(item.name)}
+            className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
+            title="Eliminar"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
         </div>
       ),
     },
   ];
-
-  const handleCreate = async () => {
-    try {
-      await createMutation.mutateAsync({
-        ...form,
-        status: 'Active',
-      } as Partial<Incapacity>);
-      toast.success('Incapacidad registrada', 'Se registró correctamente.');
-      setShowNewModal(false);
-      setForm({ employee: '', employee_name: '', incapacity_type: 'Enfermedad General', folio: '', start_date: '', end_date: '', days: 0, estimated_cost: 0, notes: '' });
-    } catch (err) {
-      toast.fromError(err);
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -92,7 +185,7 @@ export default function Disabilities() {
           <p className="mt-1 text-gray-500">Control de incapacidades médicas y seguimiento</p>
         </div>
         <RoleGuard section="disabilities" action="create">
-          <button onClick={() => setShowNewModal(true)} className="btn-primary">
+          <button onClick={openCreateModal} className="btn-primary">
             <Plus className="h-4 w-4" />
             Nueva Incapacidad
           </button>
@@ -116,15 +209,15 @@ export default function Disabilities() {
       />
 
       <Modal
-        isOpen={showNewModal}
-        onClose={() => setShowNewModal(false)}
-        title="Nueva Incapacidad"
+        isOpen={showModal}
+        onClose={closeModal}
+        title={editingItem ? 'Editar Incapacidad' : 'Nueva Incapacidad'}
         size="lg"
         footer={
           <>
-            <button onClick={() => setShowNewModal(false)} className="btn-secondary">Cancelar</button>
-            <button onClick={handleCreate} disabled={createMutation.isPending || !form.employee} className="btn-primary">
-              {createMutation.isPending ? 'Guardando...' : 'Registrar'}
+            <button onClick={closeModal} className="btn-secondary">Cancelar</button>
+            <button onClick={handleSave} disabled={isSaving || !form.employee} className="btn-primary">
+              {isSaving ? 'Guardando...' : editingItem ? 'Guardar Cambios' : 'Registrar'}
             </button>
           </>
         }

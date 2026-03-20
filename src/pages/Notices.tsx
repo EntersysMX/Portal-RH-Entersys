@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Bell, Plus, AlertTriangle, Info, CheckCircle, AlertCircle, Trash2, Edit } from 'lucide-react';
+import { Bell, Plus, AlertTriangle, Info, CheckCircle, AlertCircle, Trash2, Edit, ToggleLeft, ToggleRight } from 'lucide-react';
 import { clsx } from 'clsx';
 import StatsCard from '@/components/ui/StatsCard';
 import DataTable, { Column } from '@/components/ui/DataTable';
 import Modal from '@/components/ui/Modal';
 import RoleGuard from '@/components/auth/RoleGuard';
-import { useNotices, useCreateNotice } from '@/hooks/useFrappe';
+import { useNotices, useCreateNotice, useUpdateNotice, useDeleteNotice } from '@/hooks/useFrappe';
 import { toast } from '@/components/ui/Toast';
 import type { Notice } from '@/types/frappe';
 
@@ -26,20 +26,111 @@ function TypeBadge({ type }: { type: Notice['type'] }) {
   );
 }
 
+const EMPTY_FORM = {
+  title: '',
+  content: '',
+  type: 'info' as Notice['type'],
+  target_audience: 'all',
+  expiry_date: '',
+};
+
 export default function Notices() {
   const { data: notices, isLoading, isError, refetch } = useNotices();
   const createMutation = useCreateNotice();
-  const [showNewModal, setShowNewModal] = useState(false);
-  const [newNotice, setNewNotice] = useState({
-    title: '',
-    content: '',
-    type: 'info' as Notice['type'],
-    target_audience: 'all',
-    expiry_date: '',
-  });
+  const updateMutation = useUpdateNotice();
+  const deleteMutation = useDeleteNotice();
+
+  const [showModal, setShowModal] = useState(false);
+  const [editingItem, setEditingItem] = useState<Notice | null>(null);
+  const [formData, setFormData] = useState(EMPTY_FORM);
 
   const activeNotices = notices?.filter((n) => n.status === 'Active') || [];
   const urgentCount = activeNotices.filter((n) => n.type === 'urgent').length;
+
+  const isSaving = createMutation.isPending || updateMutation.isPending;
+
+  // --- Handlers ---
+
+  const openCreateModal = () => {
+    setEditingItem(null);
+    setFormData(EMPTY_FORM);
+    setShowModal(true);
+  };
+
+  const openEditModal = (item: Notice) => {
+    setEditingItem(item);
+    setFormData({
+      title: item.title,
+      content: item.content,
+      type: item.type,
+      target_audience: item.target_audience,
+      expiry_date: item.expiry_date ?? '',
+    });
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setEditingItem(null);
+    setFormData(EMPTY_FORM);
+  };
+
+  const handleSave = async () => {
+    try {
+      if (editingItem) {
+        await updateMutation.mutateAsync({
+          name: editingItem.name,
+          data: {
+            title: formData.title,
+            content: formData.content,
+            type: formData.type,
+            target_audience: formData.target_audience,
+            expiry_date: formData.expiry_date || undefined,
+          },
+        });
+        toast.success('Aviso actualizado', 'Los cambios se guardaron correctamente.');
+      } else {
+        await createMutation.mutateAsync({
+          ...formData,
+          author: 'Admin',
+          posted_date: new Date().toISOString().split('T')[0],
+          status: 'Active',
+        } as Partial<Notice>);
+        toast.success('Aviso publicado', 'El aviso se creó correctamente.');
+      }
+      closeModal();
+    } catch (err) {
+      toast.fromError(err);
+    }
+  };
+
+  const handleDelete = async (name: string) => {
+    if (!window.confirm('¿Estás seguro de que deseas eliminar este aviso? Esta acción no se puede deshacer.')) return;
+    try {
+      await deleteMutation.mutateAsync(name);
+      toast.success('Aviso eliminado', 'El aviso se eliminó correctamente.');
+    } catch (err) {
+      toast.fromError(err);
+    }
+  };
+
+  const handleToggleStatus = async (item: Notice) => {
+    const newStatus = item.status === 'Active' ? 'Inactive' : 'Active';
+    try {
+      await updateMutation.mutateAsync({
+        name: item.name,
+        data: { status: newStatus },
+      });
+      toast.success(
+        newStatus === 'Active' ? 'Aviso activado' : 'Aviso desactivado',
+        `El aviso "${item.title}" ahora está ${newStatus === 'Active' ? 'activo' : 'inactivo'}.`,
+      );
+    } catch (err) {
+      toast.fromError(err);
+    }
+  };
+
+  // --- Columns ---
 
   const columns: Column<Notice>[] = [
     {
@@ -53,7 +144,11 @@ export default function Notices() {
       render: (n) => <TypeBadge type={n.type} />,
     },
     { key: 'posted_date', header: 'Fecha' },
-    { key: 'target_audience', header: 'Audiencia', render: (n) => <span className="capitalize">{n.target_audience}</span> },
+    {
+      key: 'target_audience',
+      header: 'Audiencia',
+      render: (n) => <span className="capitalize">{n.target_audience}</span>,
+    },
     {
       key: 'status',
       header: 'Estado',
@@ -62,37 +157,47 @@ export default function Notices() {
           'rounded-full px-2 py-0.5 text-xs font-medium',
           n.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
         )}>
-          {n.status}
+          {n.status === 'Active' ? 'Activo' : 'Inactivo'}
         </span>
       ),
     },
     {
       key: 'actions',
       header: 'Acciones',
-      render: () => (
+      render: (item) => (
         <div className="flex gap-1">
-          <button className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"><Edit className="h-4 w-4" /></button>
-          <button className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
+          <button
+            title={item.status === 'Active' ? 'Desactivar' : 'Activar'}
+            onClick={() => handleToggleStatus(item)}
+            className={clsx(
+              'rounded p-1',
+              item.status === 'Active'
+                ? 'text-green-500 hover:bg-green-50 hover:text-green-700'
+                : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600',
+            )}
+          >
+            {item.status === 'Active' ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
+          </button>
+          <button
+            title="Editar"
+            onClick={() => openEditModal(item)}
+            className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+          >
+            <Edit className="h-4 w-4" />
+          </button>
+          <button
+            title="Eliminar"
+            onClick={() => handleDelete(item.name)}
+            className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
         </div>
       ),
     },
   ];
 
-  const handleCreate = async () => {
-    try {
-      await createMutation.mutateAsync({
-        ...newNotice,
-        author: 'Admin',
-        posted_date: new Date().toISOString().split('T')[0],
-        status: 'Active',
-      } as Partial<Notice>);
-      toast.success('Aviso publicado', 'El aviso se creó correctamente.');
-      setShowNewModal(false);
-      setNewNotice({ title: '', content: '', type: 'info', target_audience: 'all', expiry_date: '' });
-    } catch (err) {
-      toast.fromError(err);
-    }
-  };
+  // --- Render ---
 
   return (
     <div className="space-y-6">
@@ -102,7 +207,7 @@ export default function Notices() {
           <p className="mt-1 text-gray-500">Gestión de comunicados y avisos internos</p>
         </div>
         <RoleGuard section="notices" action="create">
-          <button onClick={() => setShowNewModal(true)} className="btn-primary">
+          <button onClick={openCreateModal} className="btn-primary">
             <Plus className="h-4 w-4" />
             Nuevo Aviso
           </button>
@@ -126,15 +231,22 @@ export default function Notices() {
       />
 
       <Modal
-        isOpen={showNewModal}
-        onClose={() => setShowNewModal(false)}
-        title="Nuevo Aviso"
+        isOpen={showModal}
+        onClose={closeModal}
+        title={editingItem ? 'Editar Aviso' : 'Nuevo Aviso'}
         size="lg"
         footer={
           <>
-            <button onClick={() => setShowNewModal(false)} className="btn-secondary">Cancelar</button>
-            <button onClick={handleCreate} disabled={createMutation.isPending || !newNotice.title} className="btn-primary">
-              {createMutation.isPending ? 'Creando...' : 'Publicar Aviso'}
+            <button onClick={closeModal} className="btn-secondary">Cancelar</button>
+            <button
+              onClick={handleSave}
+              disabled={isSaving || !formData.title}
+              className="btn-primary"
+            >
+              {isSaving
+                ? (editingItem ? 'Guardando...' : 'Creando...')
+                : (editingItem ? 'Guardar Cambios' : 'Publicar Aviso')
+              }
             </button>
           </>
         }
@@ -142,16 +254,30 @@ export default function Notices() {
         <div className="space-y-4">
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700">Título</label>
-            <input className="input" value={newNotice.title} onChange={(e) => setNewNotice({ ...newNotice, title: e.target.value })} placeholder="Título del aviso" />
+            <input
+              className="input"
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              placeholder="Título del aviso"
+            />
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700">Contenido</label>
-            <textarea className="input min-h-[100px]" value={newNotice.content} onChange={(e) => setNewNotice({ ...newNotice, content: e.target.value })} placeholder="Escribe el contenido del aviso..." />
+            <textarea
+              className="input min-h-[100px]"
+              value={formData.content}
+              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+              placeholder="Escribe el contenido del aviso..."
+            />
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700">Tipo</label>
-              <select className="input" value={newNotice.type} onChange={(e) => setNewNotice({ ...newNotice, type: e.target.value as Notice['type'] })}>
+              <select
+                className="input"
+                value={formData.type}
+                onChange={(e) => setFormData({ ...formData, type: e.target.value as Notice['type'] })}
+              >
                 <option value="info">Informativo</option>
                 <option value="warning">Advertencia</option>
                 <option value="success">Positivo</option>
@@ -160,7 +286,11 @@ export default function Notices() {
             </div>
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700">Audiencia</label>
-              <select className="input" value={newNotice.target_audience} onChange={(e) => setNewNotice({ ...newNotice, target_audience: e.target.value })}>
+              <select
+                className="input"
+                value={formData.target_audience}
+                onChange={(e) => setFormData({ ...formData, target_audience: e.target.value })}
+              >
                 <option value="all">Todos</option>
                 <option value="Tecnología">Tecnología</option>
                 <option value="Ventas">Ventas</option>
@@ -171,7 +301,12 @@ export default function Notices() {
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700">Fecha de expiración (opcional)</label>
-            <input type="date" className="input" value={newNotice.expiry_date} onChange={(e) => setNewNotice({ ...newNotice, expiry_date: e.target.value })} />
+            <input
+              type="date"
+              className="input"
+              value={formData.expiry_date}
+              onChange={(e) => setFormData({ ...formData, expiry_date: e.target.value })}
+            />
           </div>
         </div>
       </Modal>

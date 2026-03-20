@@ -671,6 +671,25 @@ export function useCreateNotice() {
   });
 }
 
+export function useUpdateNotice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ name, data }: { name: string; data: Record<string, unknown> }) =>
+      noticeService.update(name, data as Parameters<typeof noticeService.update>[1]),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['notices'] }),
+    onError: (error) => toast.fromError(error),
+  });
+}
+
+export function useDeleteNotice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) => noticeService.delete(name),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['notices'] }),
+    onError: (error) => toast.fromError(error),
+  });
+}
+
 // ============================================
 // EMPLOYEE DOCUMENTS
 // ============================================
@@ -1071,6 +1090,16 @@ export function useGrievances(filters?: Record<string, unknown>) {
 export function useCreateGrievance() {
   const qc = useQueryClient();
   return useMutation({ mutationFn: grievanceService.create, onSuccess: () => qc.invalidateQueries({ queryKey: ['grievances'] }), onError: (error) => toast.fromError(error) });
+}
+
+export function useUpdateGrievance() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ name, data }: { name: string; data: Record<string, unknown> }) =>
+      grievanceService.update(name, data as Parameters<typeof grievanceService.update>[1]),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['grievances'] }),
+    onError: (error) => toast.fromError(error),
+  });
 }
 
 // ============================================

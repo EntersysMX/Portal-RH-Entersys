@@ -54,7 +54,7 @@ export default function Movements() {
     (transfers?.filter((t) => t.transfer_date?.startsWith(String(currentYear))).length ?? 0);
 
   const promotionColumns: Column<EmployeePromotion>[] = [
-    { key: 'employee_name', header: 'Empleado' },
+    { key: 'employee_name', header: 'Empleado', render: (item) => <span className="font-medium text-gray-900">{item.employee_name || item.employee}</span> },
     { key: 'promotion_date', header: 'Fecha' },
     {
       key: 'promotion_details',
@@ -69,7 +69,7 @@ export default function Movements() {
   ];
 
   const transferColumns: Column<EmployeeTransfer>[] = [
-    { key: 'employee_name', header: 'Empleado' },
+    { key: 'employee_name', header: 'Empleado', render: (item) => <span className="font-medium text-gray-900">{item.employee_name || item.employee}</span> },
     { key: 'transfer_date', header: 'Fecha' },
     {
       key: 'transfer_details',
@@ -213,10 +213,10 @@ export default function Movements() {
             </button>
             <button
               onClick={handleCreatePromotion}
-              disabled={createPromotionMutation.isPending}
+              disabled={createPromotionMutation.isPending || !newPromotion.employee || !newPromotion.promotion_date || !newPromotion.property || !newPromotion.new_value}
               className="btn-primary"
             >
-              {createPromotionMutation.isPending ? 'Creando...' : 'Crear Promocion'}
+              {createPromotionMutation.isPending ? 'Creando...' : 'Crear Promoción'}
             </button>
           </>
         }
@@ -295,7 +295,7 @@ export default function Movements() {
             </button>
             <button
               onClick={handleCreateTransfer}
-              disabled={createTransferMutation.isPending}
+              disabled={createTransferMutation.isPending || !newTransfer.employee || !newTransfer.transfer_date || !newTransfer.property || !newTransfer.new_value}
               className="btn-primary"
             >
               {createTransferMutation.isPending ? 'Creando...' : 'Crear Transferencia'}

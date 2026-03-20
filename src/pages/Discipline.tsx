@@ -5,7 +5,12 @@ import StatsCard from '@/components/ui/StatsCard';
 import DataTable, { Column } from '@/components/ui/DataTable';
 import Modal from '@/components/ui/Modal';
 import RoleGuard from '@/components/auth/RoleGuard';
-import { useDisciplinaryActions, useCreateDisciplinaryAction } from '@/hooks/useFrappe';
+import {
+  useDisciplinaryActions,
+  useCreateDisciplinaryAction,
+  useUpdateDisciplinaryAction,
+  useDeleteDisciplinaryAction,
+} from '@/hooks/useFrappe';
 import { toast } from '@/components/ui/Toast';
 import type { DisciplinaryAction } from '@/types/frappe';
 
@@ -25,19 +30,27 @@ const CATEGORY_COLORS: Record<string, string> = {
   Otro: 'bg-gray-100 text-gray-700',
 };
 
+const STATUS_OPTIONS: DisciplinaryAction['status'][] = ['Active', 'Resolved', 'Cancelled'];
+
+const emptyForm = {
+  employee: '',
+  employee_name: '',
+  date: new Date().toISOString().split('T')[0],
+  category: 'Conducta' as DisciplinaryAction['category'],
+  reason: '',
+  sanction_type: 'Verbal' as DisciplinaryAction['sanction_type'],
+  notes: '',
+};
+
 export default function Discipline() {
   const { data: actions, isLoading, isError, refetch } = useDisciplinaryActions();
   const createMutation = useCreateDisciplinaryAction();
-  const [showNewModal, setShowNewModal] = useState(false);
-  const [form, setForm] = useState({
-    employee: '',
-    employee_name: '',
-    date: new Date().toISOString().split('T')[0],
-    category: 'Conducta' as DisciplinaryAction['category'],
-    reason: '',
-    sanction_type: 'Verbal' as DisciplinaryAction['sanction_type'],
-    notes: '',
-  });
+  const updateMutation = useUpdateDisciplinaryAction();
+  const deleteMutation = useDeleteDisciplinaryAction();
+
+  const [showModal, setShowModal] = useState(false);
+  const [editingItem, setEditingItem] = useState<DisciplinaryAction | null>(null);
+  const [form, setForm] = useState({ ...emptyForm });
 
   const activeCount = actions?.filter((a) => a.status === 'Active').length ?? 0;
   const catCount: Record<string, number> = {};
@@ -48,6 +61,78 @@ export default function Discipline() {
   const topEmployee = Object.entries(empCount).sort((a, b) => b[1] - a[1])[0]?.[0] ?? '—';
   const currentMonth = new Date().toISOString().substring(0, 7);
   const thisMonthCount = actions?.filter((a) => a.date?.startsWith(currentMonth)).length ?? 0;
+
+  const isSaving = createMutation.isPending || updateMutation.isPending;
+
+  const resetAndCloseModal = () => {
+    setShowModal(false);
+    setEditingItem(null);
+    setForm({ ...emptyForm });
+  };
+
+  const openCreateModal = () => {
+    setEditingItem(null);
+    setForm({ ...emptyForm });
+    setShowModal(true);
+  };
+
+  const openEditModal = (item: DisciplinaryAction) => {
+    setEditingItem(item);
+    setForm({
+      employee: item.employee,
+      employee_name: item.employee_name,
+      date: item.date,
+      category: item.category,
+      reason: item.reason,
+      sanction_type: item.sanction_type,
+      notes: item.notes ?? '',
+    });
+    setShowModal(true);
+  };
+
+  const handleSave = async () => {
+    try {
+      if (editingItem) {
+        await updateMutation.mutateAsync({
+          name: editingItem.name,
+          data: { ...form },
+        });
+        toast.success('Acta actualizada', 'La acción disciplinaria fue actualizada.');
+      } else {
+        await createMutation.mutateAsync({
+          ...form,
+          status: 'Active',
+        } as Partial<DisciplinaryAction>);
+        toast.success('Acta registrada', 'La acción disciplinaria fue registrada.');
+      }
+      resetAndCloseModal();
+    } catch (err) {
+      toast.fromError(err);
+    }
+  };
+
+  const handleDelete = async (name: string) => {
+    if (!window.confirm('¿Estás seguro de eliminar esta acción disciplinaria? Esta acción no se puede deshacer.')) return;
+    try {
+      await deleteMutation.mutateAsync(name);
+      toast.success('Acta eliminada', 'La acción disciplinaria fue eliminada.');
+    } catch (err) {
+      toast.fromError(err);
+    }
+  };
+
+  const handleStatusChange = async (item: DisciplinaryAction, newStatus: DisciplinaryAction['status']) => {
+    if (newStatus === item.status) return;
+    try {
+      await updateMutation.mutateAsync({
+        name: item.name,
+        data: { status: newStatus },
+      });
+      toast.success('Estado actualizado', `El estado cambió a "${newStatus}".`);
+    } catch (err) {
+      toast.fromError(err);
+    }
+  };
 
   const columns: Column<DisciplinaryAction>[] = [
     { key: 'employee_name', header: 'Empleado', render: (a) => <p className="font-medium text-gray-900">{a.employee_name}</p> },
@@ -67,35 +152,42 @@ export default function Discipline() {
     {
       key: 'status', header: 'Estado',
       render: (a) => (
-        <span className={clsx('rounded-full px-2 py-0.5 text-xs font-medium',
-          a.status === 'Active' ? 'bg-green-100 text-green-700' : a.status === 'Resolved' ? 'bg-gray-100 text-gray-600' : 'bg-red-100 text-red-600'
-        )}>{a.status}</span>
+        <select
+          value={a.status}
+          onChange={(e) => handleStatusChange(a, e.target.value as DisciplinaryAction['status'])}
+          className={clsx(
+            'cursor-pointer rounded-full border-0 px-2 py-0.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-400',
+            a.status === 'Active' ? 'bg-green-100 text-green-700' : a.status === 'Resolved' ? 'bg-gray-100 text-gray-600' : 'bg-red-100 text-red-600'
+          )}
+        >
+          {STATUS_OPTIONS.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
       ),
     },
     {
       key: 'actions', header: 'Acciones',
-      render: () => (
+      render: (item) => (
         <div className="flex gap-1">
-          <button className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"><Edit className="h-4 w-4" /></button>
-          <button className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
+          <button
+            onClick={() => openEditModal(item)}
+            className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            title="Editar"
+          >
+            <Edit className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => handleDelete(item.name)}
+            className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
+            title="Eliminar"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
         </div>
       ),
     },
   ];
-
-  const handleCreate = async () => {
-    try {
-      await createMutation.mutateAsync({
-        ...form,
-        status: 'Active',
-      } as Partial<DisciplinaryAction>);
-      toast.success('Acta registrada', 'La acción disciplinaria fue registrada.');
-      setShowNewModal(false);
-      setForm({ employee: '', employee_name: '', date: new Date().toISOString().split('T')[0], category: 'Conducta', reason: '', sanction_type: 'Verbal', notes: '' });
-    } catch (err) {
-      toast.fromError(err);
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -105,7 +197,7 @@ export default function Discipline() {
           <p className="mt-1 text-gray-500">Gestión de amonestaciones y actas administrativas</p>
         </div>
         <RoleGuard section="discipline" action="create">
-          <button onClick={() => setShowNewModal(true)} className="btn-primary">
+          <button onClick={openCreateModal} className="btn-primary">
             <Plus className="h-4 w-4" />
             Nueva Acta
           </button>
@@ -129,15 +221,19 @@ export default function Discipline() {
       />
 
       <Modal
-        isOpen={showNewModal}
-        onClose={() => setShowNewModal(false)}
-        title="Nueva Acción Disciplinaria"
+        isOpen={showModal}
+        onClose={resetAndCloseModal}
+        title={editingItem ? 'Editar Acción Disciplinaria' : 'Nueva Acción Disciplinaria'}
         size="lg"
         footer={
           <>
-            <button onClick={() => setShowNewModal(false)} className="btn-secondary">Cancelar</button>
-            <button onClick={handleCreate} disabled={createMutation.isPending || !form.employee || !form.reason} className="btn-primary">
-              {createMutation.isPending ? 'Guardando...' : 'Registrar Acta'}
+            <button onClick={resetAndCloseModal} className="btn-secondary">Cancelar</button>
+            <button
+              onClick={handleSave}
+              disabled={isSaving || !form.employee || !form.reason}
+              className="btn-primary"
+            >
+              {isSaving ? 'Guardando...' : editingItem ? 'Guardar Cambios' : 'Registrar Acta'}
             </button>
           </>
         }
