@@ -54,14 +54,21 @@ import {
   leaveEncashmentService,
 } from '@/api/services';
 import { useAuthStore } from '@/store/authStore';
+import { useModuleStore } from '@/store/moduleStore';
 import { toast } from '@/components/ui/Toast';
 
 // ============================================
 // DASHBOARD
 // ============================================
 export function useDashboardStats() {
+  const manifest = useModuleStore((s) => s.manifest);
+  // Include relevant module states so React Query re-fetches when they toggle
+  const moduleKey = ['reclutamiento', 'vacaciones', 'asistencia']
+    .map((m) => manifest[m]?.enabled ? '1' : '0')
+    .join(',');
+
   return useQuery({
-    queryKey: ['dashboard-stats'],
+    queryKey: ['dashboard-stats', moduleKey],
     queryFn: dashboardService.getStats,
     staleTime: 60_000,
   });
@@ -581,8 +588,14 @@ export function useMyLeaves(filters?: Record<string, unknown>, limit = 20) {
 // ============================================
 
 export function useEmployeeFullProfile(id: string) {
+  const manifest = useModuleStore((s) => s.manifest);
+  // Build a module key so React Query re-fetches when relevant modules toggle
+  const moduleKey = ['prestaciones', 'nomina', 'vacaciones', 'capacitacion']
+    .map((m) => manifest[m]?.enabled ? '1' : '0')
+    .join(',');
+
   return useQuery({
-    queryKey: ['employee-full-profile', id],
+    queryKey: ['employee-full-profile', id, moduleKey],
     queryFn: () => employeeProfileService.getFullProfile(id),
     enabled: !!id,
     staleTime: 60_000,
@@ -968,6 +981,18 @@ export function useCreateTravelRequest() {
 // ============================================
 export function useBenefitEntries(filters?: Record<string, unknown>) {
   return useQuery({ queryKey: ['benefit-entries', filters], queryFn: () => benefitsService.list({ filters }), staleTime: 30_000 });
+}
+
+export function useBenefitEntriesByEmployee(employeeId: string) {
+  return useQuery({
+    queryKey: ['benefit-entries-by-employee', employeeId],
+    queryFn: async () => {
+      const all = await benefitsService.list();
+      return all.filter((b) => b.employee === employeeId);
+    },
+    enabled: !!employeeId,
+    staleTime: 30_000,
+  });
 }
 
 export function useCreateBenefitEntry() {

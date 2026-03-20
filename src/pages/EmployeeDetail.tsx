@@ -1,9 +1,11 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, User, Briefcase, Phone, Building2, FileText, Calendar,
   DollarSign, CalendarCheck, GraduationCap, FolderOpen, Activity,
   Heart, Download, ExternalLink, Clock, Upload, Trash2, File, Image, FileSpreadsheet,
+  Camera, Shield,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import {
@@ -15,13 +17,17 @@ import StatusBadge from '@/components/ui/StatusBadge';
 import ErrorState from '@/components/ui/ErrorState';
 import PayslipDetailModal from '@/components/payroll/PayslipDetailModal';
 import Modal from '@/components/ui/Modal';
-import { useEmployeeFullProfile, useEmployeeDocuments, useUploadEmployeeDocument, useDeleteEmployeeDocument } from '@/hooks/useFrappe';
+import { useEmployeeFullProfile, useEmployeeDocuments, useUploadEmployeeDocument, useDeleteEmployeeDocument, useBenefitEntriesByEmployee } from '@/hooks/useFrappe';
+import { employeeService } from '@/api/services';
+import { isProfileTabEnabled } from '@/modules/contributions';
+import { useModuleStore } from '@/store/moduleStore';
+import { frappeUploadFile } from '@/api/client';
 import { downloadSalarySlipPdf, downloadEmployeeReportPdf } from '@/lib/pdf/pdfGenerator';
 import { toast } from '@/components/ui/Toast';
 import type {
   Employee, SalarySlip, LeaveApplication, EmployeeBankAccount,
-  EmploymentContract, EmployeeBenefit, EmergencyContact,
-  EmployeeActivity, TrainingEvent, FrappeFile,
+  EmergencyContact,
+  EmployeeActivity, TrainingEvent, FrappeFile, BenefitEntry,
 } from '@/types/frappe';
 
 const TABS = [
@@ -58,10 +64,45 @@ function InfoRow({ label, value, icon }: { label: string; value?: string | null;
 export default function EmployeeDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabId>('general');
   const [selectedSlip, setSelectedSlip] = useState<SalarySlip | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
+  const manifest = useModuleStore((s) => s.manifest);
   const { data: profile, isLoading, isError, refetch } = useEmployeeFullProfile(id || '');
+
+  const visibleTabs = useMemo(
+    () => TABS.filter((t) => isProfileTabEnabled(t.id)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [manifest]
+  );
+
+  // If the active tab was disabled, fall back to 'general'
+  const effectiveTab = visibleTabs.some((t) => t.id === activeTab) ? activeTab : 'general';
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !id) return;
+    setUploadingPhoto(true);
+    try {
+      const uploaded = await frappeUploadFile({
+        file,
+        doctype: 'Employee',
+        docname: id,
+        is_private: false,
+      });
+      await employeeService.update(id, { image: uploaded.file_url });
+      queryClient.invalidateQueries({ queryKey: ['employee-full-profile', id] });
+      toast.success('Foto actualizada');
+    } catch (err) {
+      toast.fromError(err);
+    } finally {
+      setUploadingPhoto(false);
+      e.target.value = '';
+    }
+  };
 
   if (isLoading) {
     return (
@@ -108,12 +149,29 @@ export default function EmployeeDetail() {
           <ArrowLeft className="h-5 w-5" />
         </button>
         <div className="flex flex-1 items-center gap-4">
-          <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-600">
+          <div
+            onClick={() => avatarInputRef.current?.click()}
+            className="group relative flex h-14 w-14 flex-shrink-0 cursor-pointer items-center justify-center rounded-full bg-primary-100 text-primary-600"
+          >
             {emp.image ? (
               <img src={emp.image} alt="" className="h-14 w-14 rounded-full object-cover" />
             ) : (
               <User className="h-7 w-7" />
             )}
+            <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/0 transition-colors group-hover:bg-black/30">
+              {uploadingPhoto ? (
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              ) : (
+                <Camera className="h-5 w-5 text-white opacity-0 transition-opacity group-hover:opacity-100" />
+              )}
+            </div>
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarUpload}
+            />
           </div>
           <div className="min-w-0">
             <h1 className="truncate text-2xl font-bold text-gray-900">{emp.employee_name}</h1>
@@ -143,21 +201,27 @@ export default function EmployeeDetail() {
       {/* Stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatsCard title="Antigüedad" value={tenure} icon={Clock} color="blue" />
-        <StatsCard title="Último Neto" value={lastSlip ? formatCurrency(lastSlip.net_pay) : '—'} icon={DollarSign} color="green" />
-        <StatsCard title="Asistencia" value={`${attendPct}%`} icon={CalendarCheck} color="purple" />
-        <StatsCard title="Vacaciones Disp." value={`${profile.vacation_balance} días`} icon={Calendar} color="orange" />
+        {isProfileTabEnabled('nomina') && (
+          <StatsCard title="Último Neto" value={lastSlip ? formatCurrency(lastSlip.net_pay) : '—'} icon={DollarSign} color="green" />
+        )}
+        {isProfileTabEnabled('asistencia') && (
+          <StatsCard title="Asistencia" value={`${attendPct}%`} icon={CalendarCheck} color="purple" />
+        )}
+        {isProfileTabEnabled('vacaciones') && (
+          <StatsCard title="Vacaciones Disp." value={`${profile.vacation_balance} días`} icon={Calendar} color="orange" />
+        )}
       </div>
 
       {/* Tabs */}
       <div className="overflow-x-auto border-b border-gray-200">
         <div className="flex gap-1">
-          {TABS.map((tab) => (
+          {visibleTabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={clsx(
                 'flex items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium transition-colors',
-                activeTab === tab.id
+                effectiveTab === tab.id
                   ? 'border-primary-600 text-primary-600'
                   : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
               )}
@@ -171,17 +235,17 @@ export default function EmployeeDetail() {
 
       {/* Tab Content */}
       <div>
-        {activeTab === 'general' && <TabGeneral emp={emp} />}
-        {activeTab === 'contacto' && <TabContacto emp={emp} contacts={profile.emergency_contacts} />}
-        {activeTab === 'banco' && <TabBanco accounts={profile.bank_accounts} />}
-        {activeTab === 'contratos' && <TabContratos contracts={profile.contracts} />}
-        {activeTab === 'prestaciones' && <TabPrestaciones benefits={profile.benefits} />}
-        {activeTab === 'nomina' && <TabNomina slips={slips} onView={setSelectedSlip} />}
-        {activeTab === 'asistencia' && <TabAsistencia summary={profile.attendance_summary} />}
-        {activeTab === 'vacaciones' && <TabVacaciones leaves={profile.leaves} />}
-        {activeTab === 'capacitacion' && <TabCapacitacion trainings={profile.training_events} />}
-        {activeTab === 'documentos' && <TabDocumentos employeeId={id!} />}
-        {activeTab === 'actividades' && <TabActividades activities={profile.activities} />}
+        {effectiveTab === 'general' && <TabGeneral emp={emp} />}
+        {effectiveTab === 'contacto' && <TabContacto emp={emp} contacts={profile.emergency_contacts} />}
+        {effectiveTab === 'banco' && <TabBanco accounts={profile.bank_accounts} />}
+        {effectiveTab === 'contratos' && <TabContratos employeeId={id!} contracts={profile.contracts} />}
+        {effectiveTab === 'prestaciones' && <TabPrestaciones employeeId={id!} />}
+        {effectiveTab === 'nomina' && <TabNomina slips={slips} onView={setSelectedSlip} />}
+        {effectiveTab === 'asistencia' && <TabAsistencia summary={profile.attendance_summary} />}
+        {effectiveTab === 'vacaciones' && <TabVacaciones leaves={profile.leaves} />}
+        {effectiveTab === 'capacitacion' && <TabCapacitacion trainings={profile.training_events} />}
+        {effectiveTab === 'documentos' && <TabDocumentos employeeId={id!} />}
+        {effectiveTab === 'actividades' && <TabActividades activities={profile.activities} />}
       </div>
 
       <PayslipDetailModal slip={selectedSlip} onClose={() => setSelectedSlip(null)} />
@@ -298,41 +362,155 @@ function TabBanco({ accounts }: { accounts: EmployeeBankAccount[] }) {
   );
 }
 
-function TabContratos({ contracts }: { contracts: EmploymentContract[] }) {
+function TabContratos({ employeeId, contracts }: { employeeId: string; contracts: { name: string; contract_type: string; start_date: string; end_date?: string; salary: number; status: string }[] }) {
+  const { data: docs, isLoading: docsLoading } = useEmployeeDocuments(employeeId);
+  const uploadMutation = useUploadEmployeeDocument();
+  const contractInputRef = useRef<HTMLInputElement>(null);
+
+  const contractDocs = (docs ?? []).filter(d =>
+    d.file_name.toLowerCase().includes('contrato') || d.file_name.toLowerCase().includes('contract')
+  );
+
+  const handleUploadContract = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    uploadMutation.mutate({ employeeId, file }, {
+      onSuccess: () => toast.success(`"${file.name}" subido correctamente`),
+    });
+    e.target.value = '';
+  };
+
   return (
-    <div className="space-y-4">
-      {contracts.length === 0 && <p className="card p-6 text-center text-gray-400">Sin contratos registrados</p>}
-      {contracts.map((c) => (
-        <div key={c.name} className={clsx('card p-5', c.status === 'Active' && 'border-l-4 border-l-green-500')}>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-semibold text-gray-900">{c.contract_type}</p>
-              <p className="text-sm text-gray-500">
-                {c.start_date} — {c.end_date || 'Vigente'}
-              </p>
+    <div className="space-y-6">
+      {/* Contratos del sistema */}
+      {contracts.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="font-semibold text-gray-900">Contratos Registrados</h3>
+          {contracts.map((c) => (
+            <div key={c.name} className={clsx('card p-5', c.status === 'Active' && 'border-l-4 border-l-green-500')}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-semibold text-gray-900">{c.contract_type}</p>
+                  <p className="text-sm text-gray-500">
+                    {c.start_date} — {c.end_date || 'Vigente'}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-lg font-bold text-gray-900">{formatCurrency(c.salary)}</p>
+                  <StatusBadge status={c.status} />
+                </div>
+              </div>
             </div>
-            <div className="text-right">
-              <p className="text-lg font-bold text-gray-900">{formatCurrency(c.salary)}</p>
-              <StatusBadge status={c.status} />
-            </div>
-          </div>
+          ))}
         </div>
-      ))}
+      )}
+
+      {/* Documentos de contrato */}
+      <div>
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="font-semibold text-gray-900">Documentos de Contrato</h3>
+          <button
+            onClick={() => contractInputRef.current?.click()}
+            disabled={uploadMutation.isPending}
+            className="btn-secondary text-sm"
+          >
+            <Upload className="h-4 w-4" />
+            {uploadMutation.isPending ? 'Subiendo...' : 'Subir Contrato'}
+          </button>
+          <input
+            ref={contractInputRef}
+            type="file"
+            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+            className="hidden"
+            onChange={handleUploadContract}
+          />
+        </div>
+
+        {docsLoading ? (
+          <div className="flex h-20 items-center justify-center">
+            <div className="h-5 w-5 animate-spin rounded-full border-4 border-primary-600 border-t-transparent" />
+          </div>
+        ) : contractDocs.length === 0 ? (
+          <p className="card p-6 text-center text-gray-400">
+            Sin documentos de contrato. Sube un archivo con la palabra &quot;contrato&quot; en el nombre.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {contractDocs.map((d) => (
+              <div key={d.name} className="card flex items-center justify-between p-4">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-lg bg-blue-50 p-2 text-blue-600">
+                    {getFileIcon(d.file_name)}
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">{d.file_name}</p>
+                    <div className="flex items-center gap-2 text-xs text-gray-400">
+                      <span>{formatFileSize(d.file_size)}</span>
+                      <span>·</span>
+                      <span>{new Date(d.creation).toLocaleDateString('es-MX')}</span>
+                    </div>
+                  </div>
+                </div>
+                <a
+                  href={d.file_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                  title="Descargar"
+                >
+                  <Download className="h-4 w-4" />
+                </a>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {contracts.length === 0 && contractDocs.length === 0 && !docsLoading && (
+        <p className="card p-6 text-center text-gray-400">Sin contratos registrados</p>
+      )}
     </div>
   );
 }
 
-function TabPrestaciones({ benefits }: { benefits: EmployeeBenefit[] }) {
+function TabPrestaciones({ employeeId }: { employeeId: string }) {
+  const { data: benefits, isLoading } = useBenefitEntriesByEmployee(employeeId);
+
+  if (isLoading) {
+    return (
+      <div className="flex h-32 items-center justify-center">
+        <div className="h-6 w-6 animate-spin rounded-full border-4 border-primary-600 border-t-transparent" />
+      </div>
+    );
+  }
+
+  const entries = benefits ?? [];
+
+  const benefitIcons: Record<string, React.ReactNode> = {
+    'Seguro de Vida': <Shield className="h-5 w-5 text-blue-500" />,
+    'Seguro GMM': <Heart className="h-5 w-5 text-red-500" />,
+    'Aguinaldo': <DollarSign className="h-5 w-5 text-green-500" />,
+    'Prima Vacacional': <Calendar className="h-5 w-5 text-orange-500" />,
+    'Vales de Despensa': <DollarSign className="h-5 w-5 text-purple-500" />,
+    'Fondo de Ahorro': <Building2 className="h-5 w-5 text-cyan-500" />,
+    'Bono': <DollarSign className="h-5 w-5 text-yellow-500" />,
+  };
+
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-      {benefits.length === 0 && <p className="col-span-full card p-6 text-center text-gray-400">Sin prestaciones registradas</p>}
-      {benefits.map((b) => (
+      {entries.length === 0 && <p className="col-span-full card p-6 text-center text-gray-400">Sin prestaciones registradas</p>}
+      {entries.map((b: BenefitEntry) => (
         <div key={b.name} className="card p-5">
           <div className="flex items-start justify-between">
-            <div>
-              <p className="font-semibold text-gray-900">{b.benefit_type}</p>
-              <p className="text-sm text-gray-500">{b.provider || 'Sin proveedor'}</p>
-              {b.policy_number && <p className="text-xs text-gray-400">Póliza: {b.policy_number}</p>}
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5">
+                {benefitIcons[b.benefit_type] || <Heart className="h-5 w-5 text-gray-400" />}
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900">{b.benefit_type}</p>
+                {b.period && <p className="text-sm text-gray-500">{b.period}</p>}
+                {b.notes && <p className="text-xs text-gray-400 mt-1">{b.notes}</p>}
+              </div>
             </div>
             <StatusBadge status={b.status} />
           </div>

@@ -8,6 +8,7 @@ import {
   frappeCall,
   frappeUploadFile,
 } from './client';
+import { isModuleEnabled } from '@/modules/registry';
 import type {
   Employee,
   Department,
@@ -433,6 +434,7 @@ export const dashboardService = {
     const monthStart = `${today.substring(0, 7)}-01`;
 
     // Cada llamada individual tiene catch para no bloquear si un doctype falla
+    // Módulos opcionales solo se consultan si están habilitados
     const [
       totalEmployees,
       activeEmployees,
@@ -449,12 +451,18 @@ export const dashboardService = {
           doctype: 'Employee',
           filters: [['date_of_joining', '>=', monthStart]],
         }).catch(() => 0),
-        frappeGetCount({ doctype: 'Job Opening', filters: { status: 'Open' } }).catch(() => 0),
-        frappeGetCount({ doctype: 'Leave Application', filters: { status: 'Open' } }).catch(() => 0),
-        frappeGetCount({
-          doctype: 'Attendance',
-          filters: { attendance_date: today, status: 'Present' },
-        }).catch(() => 0),
+        isModuleEnabled('reclutamiento')
+          ? frappeGetCount({ doctype: 'Job Opening', filters: { status: 'Open' } }).catch(() => 0)
+          : Promise.resolve(0),
+        isModuleEnabled('vacaciones')
+          ? frappeGetCount({ doctype: 'Leave Application', filters: { status: 'Open' } }).catch(() => 0)
+          : Promise.resolve(0),
+        isModuleEnabled('asistencia')
+          ? frappeGetCount({
+              doctype: 'Attendance',
+              filters: { attendance_date: today, status: 'Present' },
+            }).catch(() => 0)
+          : Promise.resolve(0),
         frappeGetList<{ department: string; count: number }>({
           doctype: 'Employee',
           fields: ['department', 'count(name) as count'],
@@ -609,10 +617,18 @@ export const employeeProfileService = {
       employeeService.get(employeeId),
       bankAccountService.listByEmployee(employeeId).catch(() => []),
       contractService.listByEmployee(employeeId).catch(() => []),
-      benefitService.listByEmployee(employeeId).catch(() => []),
-      payrollService.listSlips({ filters: { employee: employeeId }, limit: 12 }).catch(() => []),
-      leaveService.list({ filters: { employee: employeeId }, limit: 20 }).catch(() => []),
-      trainingService.list({ limit: 10 }).catch(() => []),
+      isModuleEnabled('prestaciones')
+        ? benefitService.listByEmployee(employeeId).catch(() => [])
+        : Promise.resolve([]),
+      isModuleEnabled('nomina')
+        ? payrollService.listSlips({ filters: { employee: employeeId }, limit: 12 }).catch(() => [])
+        : Promise.resolve([]),
+      isModuleEnabled('vacaciones')
+        ? leaveService.list({ filters: { employee: employeeId }, limit: 20 }).catch(() => [])
+        : Promise.resolve([]),
+      isModuleEnabled('capacitacion')
+        ? trainingService.list({ limit: 10 }).catch(() => [])
+        : Promise.resolve([]),
     ]);
 
     return {
