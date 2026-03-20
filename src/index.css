@@ -112,6 +112,27 @@
   @apply mt-1 text-sm text-primary-200 lg:text-base;
 }
 
+/* Print styles for document generation */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #document-print-area,
+  #document-print-area * {
+    visibility: visible;
+  }
+  #document-print-area {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 2cm 2.5cm;
+    font-family: 'Times New Roman', serif;
+    font-size: 12pt;
+    line-height: 1.6;
+  }
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

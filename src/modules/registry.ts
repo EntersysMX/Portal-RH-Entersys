@@ -6,7 +6,7 @@ import {
   ArrowLeftRight, PieChart, HardHat, UserCheck,
   Banknote, PiggyBank, Plane, Gift, ArrowUpDown,
   UserX, Clock, Fingerprint, MessageSquareWarning, Star,
-  CalendarX2,
+  CalendarX2, FileText,
 } from 'lucide-react';
 import type { ModuleDefinition, ModuleManifest } from './types';
 
@@ -329,6 +329,20 @@ export const ALL_MODULES: ModuleDefinition[] = [
     permissions: standardPerms('onboarding', 'onboarding'),
     navItems: [
       { label: 'Onboarding', path: '/onboarding', icon: UserCheck, section: 'onboarding' },
+    ],
+  },
+
+  {
+    id: 'documentos',
+    label: 'Documentos',
+    description: 'Plantillas de documentos HR con generación automática',
+    details: 'Crea plantillas de contratos, cartas de recomendación, constancias, actas y memorándums con placeholders que se llenan automáticamente con datos del empleado. Selecciona un empleado, previsualiza el documento completo e imprímelo directamente.',
+    icon: FileText,
+    category: 'hr',
+    sections: ['documents'],
+    permissions: standardPerms('documentos', 'documentos'),
+    navItems: [
+      { label: 'Documentos', path: '/documents', icon: FileText, section: 'documents' },
     ],
   },
 

@@ -32,6 +32,7 @@ import Turnover from '@/pages/Turnover';
 import PeopleAnalytics from '@/pages/PeopleAnalytics';
 import EquipmentPage from '@/pages/Equipment';
 import OnboardingPage from '@/pages/Onboarding';
+import Documents from '@/pages/Documents';
 // New HR modules (batch 2)
 import Loans from '@/pages/Loans';
 import SavingsFund from '@/pages/SavingsFund';
@@ -348,6 +349,14 @@ export default function App() {
               element={
                 <ProtectedRoute requiredSection="onboarding">
                   <OnboardingPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="documents"
+              element={
+                <ProtectedRoute requiredSection="documents">
+                  <Documents />
                 </ProtectedRoute>
               }
             />

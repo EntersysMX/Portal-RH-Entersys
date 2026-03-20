@@ -164,6 +164,7 @@ export default function Surveys() {
       }
       closeEditor();
     } catch (err) {
+      console.error('[Surveys] Error al guardar encuesta:', err);
       toast.fromError(err);
     }
   };

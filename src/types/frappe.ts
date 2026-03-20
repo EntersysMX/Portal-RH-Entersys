@@ -335,6 +335,21 @@ export interface OnboardingItem {
   notes?: string;
 }
 
+// ============================================
+// DOCUMENT TEMPLATES (Documentos HR)
+// ============================================
+export type DocumentCategory = 'Contrato' | 'Carta de Recomendacion' | 'Constancia' | 'Acta' | 'Memorandum' | 'Otro';
+
+export interface DocumentTemplate {
+  name: string;
+  title: string;
+  category: DocumentCategory;
+  content: string;           // Texto con {{placeholders}}
+  status: 'Active' | 'Inactive';
+  description?: string;
+  creation?: string;
+}
+
 // Dashboard stats
 export interface DashboardStats {
   total_employees: number;

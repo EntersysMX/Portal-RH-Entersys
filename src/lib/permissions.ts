@@ -46,6 +46,7 @@ export type MenuSection =
   | 'people-analytics'
   | 'equipment'
   | 'onboarding'
+  | 'documents'
   // Payroll Extended
   | 'loans'
   | 'savings-fund'
@@ -84,7 +85,7 @@ const PROFILE_MENU_ACCESS: Record<UserProfile, MenuSection[]> = {
     'training', 'organization', 'settings', 'notices', 'google-sync',
     // HR Extended
     'surveys', 'work-climate', 'disabilities', 'discipline',
-    'turnover', 'people-analytics', 'equipment', 'onboarding',
+    'turnover', 'people-analytics', 'equipment', 'onboarding', 'documents',
     // Payroll Extended
     'loans', 'savings-fund', 'travel', 'benefits',
     // HR Operations
@@ -101,7 +102,7 @@ const PROFILE_MENU_ACCESS: Record<UserProfile, MenuSection[]> = {
     'training', 'organization', 'notices',
     // HR Extended
     'surveys', 'work-climate', 'disabilities', 'discipline',
-    'turnover', 'people-analytics', 'equipment', 'onboarding',
+    'turnover', 'people-analytics', 'equipment', 'onboarding', 'documents',
     // Payroll Extended
     'loans', 'savings-fund', 'travel', 'benefits',
     // HR Operations
@@ -112,7 +113,7 @@ const PROFILE_MENU_ACCESS: Record<UserProfile, MenuSection[]> = {
   hr_user: [
     'dashboard', 'employees', 'employee-detail', 'attendance', 'leave-management', 'payroll', 'organization', 'notices',
     // HR Extended (limited)
-    'surveys', 'disabilities', 'discipline', 'equipment', 'onboarding',
+    'surveys', 'disabilities', 'discipline', 'equipment', 'onboarding', 'documents',
     // Payroll Extended (limited)
     'loans', 'savings-fund', 'travel', 'benefits',
     // HR Operations (limited)

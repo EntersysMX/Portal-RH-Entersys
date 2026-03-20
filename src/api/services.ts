@@ -65,6 +65,7 @@ import type {
   HolidayList,
   CompensatoryLeaveRequest,
   LeaveEncashment,
+  DocumentTemplate,
 } from '@/types/frappe';
 
 // ============================================
@@ -703,7 +704,12 @@ function noteStore<T extends { name: string }>(storeKey: string, idPrefix: strin
       const items = await load();
       const newItem = { ...data, name: generateId(idPrefix), creation: new Date().toISOString() } as unknown as T;
       items.unshift(newItem);
-      await save(items);
+      try {
+        await save(items);
+      } catch (err) {
+        console.error(`[noteStore:${storeKey}] Error al guardar:`, err);
+        throw err;
+      }
       return newItem;
     },
 
@@ -1262,6 +1268,19 @@ export const leaveEncashmentService = {
 
   create: (data: Partial<LeaveEncashment>) =>
     frappeCreateDoc<LeaveEncashment>('Leave Encashment', data),
+};
+
+// ============================================
+// DOCUMENT TEMPLATE SERVICE (Documentos HR)
+// ============================================
+const _docTemplateStore = noteStore<DocumentTemplate>('enterhr_document_templates', 'DOC');
+
+export const documentTemplateService = {
+  list: _docTemplateStore.list,
+  get: _docTemplateStore.get,
+  create: _docTemplateStore.create,
+  update: (name: string, data: Partial<DocumentTemplate>) => _docTemplateStore.update(name, data),
+  delete: _docTemplateStore.delete,
 };
 
 // ============================================

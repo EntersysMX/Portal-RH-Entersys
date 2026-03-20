@@ -52,6 +52,7 @@ import {
   holidayListService,
   compensatoryLeaveService,
   leaveEncashmentService,
+  documentTemplateService,
 } from '@/api/services';
 import { useAuthStore } from '@/store/authStore';
 import { useModuleStore } from '@/store/moduleStore';
@@ -1281,4 +1282,43 @@ export function useLeaveEncashments(filters?: Record<string, unknown>) {
 export function useCreateLeaveEncashment() {
   const qc = useQueryClient();
   return useMutation({ mutationFn: leaveEncashmentService.create, onSuccess: () => qc.invalidateQueries({ queryKey: ['leave-encashments'] }), onError: (error) => toast.fromError(error) });
+}
+
+// ============================================
+// DOCUMENT TEMPLATES (Documentos HR)
+// ============================================
+export function useDocumentTemplates(filters?: Record<string, unknown>) {
+  return useQuery({
+    queryKey: ['document-templates', filters],
+    queryFn: () => documentTemplateService.list({ filters }),
+    staleTime: 30_000,
+  });
+}
+
+export function useCreateDocumentTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: documentTemplateService.create,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['document-templates'] }),
+    onError: (error) => toast.fromError(error),
+  });
+}
+
+export function useUpdateDocumentTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ name, data }: { name: string; data: Record<string, unknown> }) =>
+      documentTemplateService.update(name, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['document-templates'] }),
+    onError: (error) => toast.fromError(error),
+  });
+}
+
+export function useDeleteDocumentTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: documentTemplateService.delete,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['document-templates'] }),
+    onError: (error) => toast.fromError(error),
+  });
 }
