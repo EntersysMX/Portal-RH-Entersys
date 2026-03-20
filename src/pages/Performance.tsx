@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Target, Award, TrendingUp, BarChart3, Plus } from 'lucide-react';
 import { clsx } from 'clsx';
 import StatsCard from '@/components/ui/StatsCard';
@@ -9,7 +9,7 @@ import Modal from '@/components/ui/Modal';
 import RoleGuard from '@/components/auth/RoleGuard';
 import { useAppraisals, useGoals, useCreateGoal } from '@/hooks/useFrappe';
 import { toast } from '@/components/ui/Toast';
-import type { Appraisal, Goal } from '@/types/frappe';
+import type { Appraisal, AppraisalGoal, Goal } from '@/types/frappe';
 import {
   RadarChart,
   Radar,
@@ -19,20 +19,30 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 
+/** Compute radar chart data from appraisal goals (average scores per KRA) */
+function computeRadarData(appraisals: Appraisal[] | undefined): { skill: string; value: number }[] {
+  if (!appraisals || appraisals.length === 0) return [];
+  const kraMap = new Map<string, { total: number; count: number }>();
+  for (const a of appraisals) {
+    if (!a.goals) continue;
+    for (const g of a.goals as AppraisalGoal[]) {
+      const entry = kraMap.get(g.kra) || { total: 0, count: 0 };
+      entry.total += (g.score / 5) * 100; // normalize to 0-100
+      entry.count += 1;
+      kraMap.set(g.kra, entry);
+    }
+  }
+  return Array.from(kraMap.entries()).map(([kra, { total, count }]) => ({
+    skill: kra,
+    value: Math.round(total / count),
+  }));
+}
+
 type Tab = 'appraisals' | 'goals';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'appraisals', label: 'Evaluaciones' },
   { id: 'goals', label: 'Objetivos' },
-];
-
-const demoRadarData = [
-  { skill: 'Liderazgo', value: 85 },
-  { skill: 'Comunicación', value: 90 },
-  { skill: 'Técnico', value: 78 },
-  { skill: 'Trabajo en equipo', value: 92 },
-  { skill: 'Innovación', value: 70 },
-  { skill: 'Puntualidad', value: 88 },
 ];
 
 export default function Performance() {
@@ -56,6 +66,8 @@ export default function Performance() {
     appraisals && appraisals.length > 0
       ? (appraisals.reduce((sum, a) => sum + (a.final_score ?? 0), 0) / appraisals.length).toFixed(1)
       : '0';
+
+  const radarData = useMemo(() => computeRadarData(appraisals), [appraisals]);
 
   const goalColumns: Column<Goal>[] = [
     {
@@ -139,14 +151,20 @@ export default function Performance() {
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="card">
             <h3 className="mb-4 text-base font-semibold text-gray-900">Competencias Promedio</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <RadarChart data={demoRadarData}>
-                <PolarGrid stroke="#e2e8f0" />
-                <PolarAngleAxis dataKey="skill" tick={{ fontSize: 12 }} />
-                <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 10 }} />
-                <Radar dataKey="value" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.2} strokeWidth={2} />
-              </RadarChart>
-            </ResponsiveContainer>
+            {radarData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <RadarChart data={radarData}>
+                  <PolarGrid stroke="#e2e8f0" />
+                  <PolarAngleAxis dataKey="skill" tick={{ fontSize: 12 }} />
+                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 10 }} />
+                  <Radar dataKey="value" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.2} strokeWidth={2} />
+                </RadarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex h-[300px] items-center justify-center text-gray-400">
+                No hay datos de evaluaciones con KRAs para mostrar el radar.
+              </div>
+            )}
           </div>
 
           <div className="card">

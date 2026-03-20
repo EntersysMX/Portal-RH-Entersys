@@ -64,6 +64,7 @@ export type MenuSection =
   | 'admin-users'
   | 'admin-catalogs'
   | 'admin-platform'
+  | 'admin-demo-data'
   // Portal de empleado
   | 'portal'
   | 'my-profile'
@@ -90,7 +91,7 @@ const PROFILE_MENU_ACCESS: Record<UserProfile, MenuSection[]> = {
     // HR Operations
     'movements', 'separations', 'shifts', 'checkins', 'grievances', 'skills',
     // Admin panel
-    'admin-modules', 'admin-roles', 'admin-users', 'admin-catalogs', 'admin-platform',
+    'admin-modules', 'admin-roles', 'admin-users', 'admin-catalogs', 'admin-platform', 'admin-demo-data',
     // Admin también puede ver el portal
     'portal', 'my-profile', 'my-payslips', 'my-attendance',
     'my-training', 'my-organization', 'my-notices',

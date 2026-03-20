@@ -477,10 +477,10 @@ export const dashboardService = {
       department_distribution: departments,
       monthly_hiring: [],
       leave_balance_summary: [],
-      monthly_payroll_cost: 2850000,
-      avg_cost_per_employee: 19000,
-      turnover_rate: 2.1,
-      active_trainings: 3,
+      monthly_payroll_cost: 0,
+      avg_cost_per_employee: 0,
+      turnover_rate: 0,
+      active_trainings: 0,
     };
   },
 };
