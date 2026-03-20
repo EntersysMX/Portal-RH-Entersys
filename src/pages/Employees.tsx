@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Download, User, Upload, MoreVertical, Power, PowerOff, Ban, Trash2 } from 'lucide-react';
+import { Plus, Search, Download, User, Upload, MoreVertical, Power, PowerOff, Ban, Trash2, Camera } from 'lucide-react';
 import DataTable, { Column } from '@/components/ui/DataTable';
 import StatusBadge from '@/components/ui/StatusBadge';
 import Modal from '@/components/ui/Modal';
@@ -10,8 +10,10 @@ import RoleGuard from '@/components/auth/RoleGuard';
 import ComboSelect from '@/components/ui/ComboSelect';
 import { useEmployees, useCreateEmployee, useUpdateEmployeeStatus, useDeleteEmployee, useDepartments, useDesignations, useCompanies } from '@/hooks/useFrappe';
 import { usePermissions } from '@/hooks/usePermissions';
-import { catalogService } from '@/api/services';
+import { catalogService, employeeService } from '@/api/services';
+import { frappeUploadFile } from '@/api/client';
 import { toast } from '@/components/ui/Toast';
+import { downloadEmployeesExcel } from '@/lib/excel/excelGenerator';
 import type { Employee } from '@/types/frappe';
 
 export default function Employees() {
@@ -37,7 +39,17 @@ export default function Employees() {
     department: '',
     designation: '',
     company: '',
+    cell_phone: '',
+    personal_email: '',
+    company_email: '',
+    emergency_contact_name: '',
+    emergency_phone: '',
+    relation: '',
+    image: '',
   });
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const filters: Record<string, unknown> = {};
   if (statusFilter) filters.status = statusFilter;
@@ -165,6 +177,50 @@ export default function Employees() {
       : []),
   ];
 
+  const handleExport = async () => {
+    if (!employees || employees.length === 0) {
+      toast.error('Sin datos', 'No hay empleados para exportar.');
+      return;
+    }
+    try {
+      await downloadEmployeesExcel(employees);
+      toast.success('Exportado', 'El archivo Excel se descargó correctamente.');
+    } catch (err) {
+      toast.fromError(err);
+    }
+  };
+
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoFile(file);
+    const reader = new FileReader();
+    reader.onload = () => setPhotoPreview(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const resetForm = () => {
+    setNewEmployee({
+      first_name: '',
+      last_name: '',
+      gender: '',
+      date_of_birth: '',
+      date_of_joining: '',
+      department: '',
+      designation: '',
+      company: '',
+      cell_phone: '',
+      personal_email: '',
+      company_email: '',
+      emergency_contact_name: '',
+      emergency_phone: '',
+      relation: '',
+      image: '',
+    });
+    setPhotoFile(null);
+    setPhotoPreview(null);
+  };
+
   const handleCreate = async () => {
     try {
       // Pre-create catalog entries that don't exist
@@ -198,19 +254,29 @@ export default function Employees() {
         await Promise.all(promises);
       }
 
-      await createMutation.mutateAsync(newEmployee);
+      // Create employee (without image first — we need the docname to attach the file)
+      const { image: _image, ...empDataWithoutImage } = newEmployee;
+      const created = await createMutation.mutateAsync(empDataWithoutImage);
+
+      // Upload photo if selected
+      if (photoFile && created?.name) {
+        try {
+          const uploaded = await frappeUploadFile({
+            file: photoFile,
+            doctype: 'Employee',
+            docname: created.name,
+            is_private: false,
+          });
+          // Update employee with the image URL
+          await employeeService.update(created.name, { image: uploaded.file_url });
+        } catch {
+          toast.warning('Empleado creado', 'Pero hubo un error al subir la foto.');
+        }
+      }
+
       toast.success('Empleado creado', 'El empleado se registró correctamente.');
       setShowNewModal(false);
-      setNewEmployee({
-        first_name: '',
-        last_name: '',
-        gender: '',
-        date_of_birth: '',
-        date_of_joining: '',
-        department: '',
-        designation: '',
-        company: '',
-      });
+      resetForm();
     } catch (err) {
       toast.fromError(err);
     }
@@ -233,7 +299,7 @@ export default function Employees() {
             </button>
           </RoleGuard>
           <RoleGuard section="employees" action="export">
-            <button className="btn-secondary">
+            <button onClick={handleExport} className="btn-secondary">
               <Download className="h-4 w-4" />
               Exportar
             </button>
@@ -312,12 +378,12 @@ export default function Employees() {
       {/* New Employee Modal */}
       <Modal
         isOpen={showNewModal}
-        onClose={() => setShowNewModal(false)}
+        onClose={() => { setShowNewModal(false); resetForm(); }}
         title="Nuevo Empleado"
-        size="lg"
+        size="xl"
         footer={
           <>
-            <button onClick={() => setShowNewModal(false)} className="btn-secondary">
+            <button onClick={() => { setShowNewModal(false); resetForm(); }} className="btn-secondary">
               Cancelar
             </button>
             <button
@@ -330,86 +396,208 @@ export default function Employees() {
           </>
         }
       >
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Nombre</label>
-            <input
-              className="input"
-              value={newEmployee.first_name}
-              onChange={(e) => setNewEmployee({ ...newEmployee, first_name: e.target.value })}
-              required
-            />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Apellido</label>
-            <input
-              className="input"
-              value={newEmployee.last_name}
-              onChange={(e) => setNewEmployee({ ...newEmployee, last_name: e.target.value })}
-              required
-            />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Género</label>
-            <select
-              className="input"
-              value={newEmployee.gender}
-              onChange={(e) => setNewEmployee({ ...newEmployee, gender: e.target.value })}
+        <div className="space-y-6">
+          {/* Fotografía */}
+          <div className="flex items-center gap-4">
+            <div
+              onClick={() => photoInputRef.current?.click()}
+              className="group relative flex h-20 w-20 flex-shrink-0 cursor-pointer items-center justify-center rounded-full bg-gray-100 text-gray-400 hover:bg-gray-200 transition-colors"
             >
-              <option value="">Seleccionar</option>
-              <option value="Masculino">Masculino</option>
-              <option value="Femenino">Femenino</option>
-              <option value="Otro">Otro</option>
-            </select>
+              {photoPreview ? (
+                <img src={photoPreview} alt="" className="h-20 w-20 rounded-full object-cover" />
+              ) : (
+                <Camera className="h-8 w-8" />
+              )}
+              <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/0 transition-colors group-hover:bg-black/20">
+                <Camera className="h-4 w-4 text-white opacity-0 transition-opacity group-hover:opacity-100" />
+              </div>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-700">Fotografía del empleado</p>
+              <button
+                type="button"
+                onClick={() => photoInputRef.current?.click()}
+                className="mt-1 text-sm text-primary-600 hover:text-primary-700"
+              >
+                {photoPreview ? 'Cambiar foto' : 'Seleccionar foto'}
+              </button>
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handlePhotoSelect}
+              />
+            </div>
           </div>
+
+          {/* Datos básicos */}
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              Fecha de nacimiento
-            </label>
-            <input
-              type="date"
-              className="input"
-              value={newEmployee.date_of_birth}
-              onChange={(e) => setNewEmployee({ ...newEmployee, date_of_birth: e.target.value })}
-            />
+            <h4 className="mb-3 text-sm font-semibold text-gray-900">Datos Personales</h4>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">Nombre *</label>
+                <input
+                  className="input"
+                  value={newEmployee.first_name}
+                  onChange={(e) => setNewEmployee({ ...newEmployee, first_name: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">Apellido *</label>
+                <input
+                  className="input"
+                  value={newEmployee.last_name}
+                  onChange={(e) => setNewEmployee({ ...newEmployee, last_name: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">Género</label>
+                <select
+                  className="input"
+                  value={newEmployee.gender}
+                  onChange={(e) => setNewEmployee({ ...newEmployee, gender: e.target.value })}
+                >
+                  <option value="">Seleccionar</option>
+                  <option value="Masculino">Masculino</option>
+                  <option value="Femenino">Femenino</option>
+                  <option value="Otro">Otro</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">Fecha de nacimiento</label>
+                <input
+                  type="date"
+                  className="input"
+                  value={newEmployee.date_of_birth}
+                  onChange={(e) => setNewEmployee({ ...newEmployee, date_of_birth: e.target.value })}
+                />
+              </div>
+            </div>
           </div>
+
+          {/* Datos laborales */}
           <div>
-            <ComboSelect
-              label="Departamento"
-              options={departmentOptions}
-              value={newEmployee.department}
-              onChange={(val) => setNewEmployee({ ...newEmployee, department: val })}
-              placeholder="Seleccionar o crear departamento"
-            />
+            <h4 className="mb-3 text-sm font-semibold text-gray-900">Datos Laborales</h4>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div>
+                <ComboSelect
+                  label="Departamento"
+                  options={departmentOptions}
+                  value={newEmployee.department}
+                  onChange={(val) => setNewEmployee({ ...newEmployee, department: val })}
+                  placeholder="Seleccionar o crear departamento"
+                />
+              </div>
+              <div>
+                <ComboSelect
+                  label="Puesto"
+                  options={designationOptions}
+                  value={newEmployee.designation}
+                  onChange={(val) => setNewEmployee({ ...newEmployee, designation: val })}
+                  placeholder="Seleccionar o crear puesto"
+                />
+              </div>
+              <div>
+                <ComboSelect
+                  label="Empresa"
+                  options={companyOptions}
+                  value={newEmployee.company}
+                  onChange={(val) => setNewEmployee({ ...newEmployee, company: val })}
+                  placeholder="Seleccionar o crear empresa"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">Fecha de ingreso</label>
+                <input
+                  type="date"
+                  className="input"
+                  value={newEmployee.date_of_joining}
+                  onChange={(e) => setNewEmployee({ ...newEmployee, date_of_joining: e.target.value })}
+                />
+              </div>
+            </div>
           </div>
+
+          {/* Contacto */}
           <div>
-            <ComboSelect
-              label="Puesto"
-              options={designationOptions}
-              value={newEmployee.designation}
-              onChange={(val) => setNewEmployee({ ...newEmployee, designation: val })}
-              placeholder="Seleccionar o crear puesto"
-            />
+            <h4 className="mb-3 text-sm font-semibold text-gray-900">Contacto</h4>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">Teléfono celular</label>
+                <input
+                  type="tel"
+                  className="input"
+                  placeholder="+52 55 1234 5678"
+                  value={newEmployee.cell_phone}
+                  onChange={(e) => setNewEmployee({ ...newEmployee, cell_phone: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">Email personal</label>
+                <input
+                  type="email"
+                  className="input"
+                  placeholder="correo@personal.com"
+                  value={newEmployee.personal_email}
+                  onChange={(e) => setNewEmployee({ ...newEmployee, personal_email: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">Email corporativo</label>
+                <input
+                  type="email"
+                  className="input"
+                  placeholder="correo@empresa.com"
+                  value={newEmployee.company_email}
+                  onChange={(e) => setNewEmployee({ ...newEmployee, company_email: e.target.value })}
+                />
+              </div>
+            </div>
           </div>
+
+          {/* Contacto de emergencia */}
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              Fecha de ingreso
-            </label>
-            <input
-              type="date"
-              className="input"
-              value={newEmployee.date_of_joining}
-              onChange={(e) => setNewEmployee({ ...newEmployee, date_of_joining: e.target.value })}
-            />
-          </div>
-          <div>
-            <ComboSelect
-              label="Empresa"
-              options={companyOptions}
-              value={newEmployee.company}
-              onChange={(val) => setNewEmployee({ ...newEmployee, company: val })}
-              placeholder="Seleccionar o crear empresa"
-            />
+            <h4 className="mb-3 text-sm font-semibold text-gray-900">Contacto de Emergencia</h4>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">Nombre del contacto</label>
+                <input
+                  className="input"
+                  placeholder="Nombre completo"
+                  value={newEmployee.emergency_contact_name}
+                  onChange={(e) => setNewEmployee({ ...newEmployee, emergency_contact_name: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">Teléfono emergencia</label>
+                <input
+                  type="tel"
+                  className="input"
+                  placeholder="+52 55 9876 5432"
+                  value={newEmployee.emergency_phone}
+                  onChange={(e) => setNewEmployee({ ...newEmployee, emergency_phone: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">Relación</label>
+                <select
+                  className="input"
+                  value={newEmployee.relation}
+                  onChange={(e) => setNewEmployee({ ...newEmployee, relation: e.target.value })}
+                >
+                  <option value="">Seleccionar</option>
+                  <option value="Padre">Padre</option>
+                  <option value="Madre">Madre</option>
+                  <option value="Esposo(a)">Esposo(a)</option>
+                  <option value="Hermano(a)">Hermano(a)</option>
+                  <option value="Hijo(a)">Hijo(a)</option>
+                  <option value="Otro">Otro</option>
+                </select>
+              </div>
+            </div>
           </div>
         </div>
       </Modal>

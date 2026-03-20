@@ -5,7 +5,7 @@
 
 import ExcelJS from 'exceljs';
 import type { ProyeccionNomina, ReciboNomina, PrestacionesAnuales } from '@/modules/nomina-mx/types';
-import type { SalarySlip } from '@/types/frappe';
+import type { SalarySlip, Employee } from '@/types/frappe';
 
 // ---- Constantes de branding ----
 const BRAND = {
@@ -1277,4 +1277,72 @@ export async function downloadPlantillaCargaMasiva(dynamicCatalogs?: BulkTemplat
 
   const buffer = await wb.xlsx.writeBuffer();
   triggerDownload(buffer, `EnterHR_Plantilla_Carga_Masiva_${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
+// ============================================
+// 6. EXPORTAR DIRECTORIO DE EMPLEADOS
+// ============================================
+
+export async function downloadEmployeesExcel(employees: Employee[]): Promise<void> {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'EnterHR by EnterSys';
+  wb.created = new Date();
+
+  const ws = wb.addWorksheet('Empleados');
+  const headers = ['ID', 'Nombre', 'Departamento', 'Puesto', 'Empresa', 'Teléfono', 'Email', 'Fecha Ingreso', 'Tipo Contrato', 'Estado'];
+  const colCount = headers.length;
+
+  applyBrandHeader(ws, 'Directorio de Empleados', `${employees.length} empleados`, colCount);
+
+  // Stats row
+  const active = employees.filter(e => e.status === 'Active').length;
+  const inactive = employees.filter(e => e.status !== 'Active').length;
+  const statsRow = 5;
+  ws.mergeCells(statsRow, 1, statsRow, colCount);
+  const statsCell = ws.getCell(statsRow, 1);
+  statsCell.value = `Total: ${employees.length}  |  Activos: ${active}  |  Inactivos: ${inactive}`;
+  statsCell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: BRAND.primary } };
+  statsCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.sectionBg } };
+  statsCell.alignment = { horizontal: 'center' };
+
+  // Data headers
+  const headerRow = ws.getRow(7);
+  headers.forEach((h, i) => { headerRow.getCell(i + 1).value = h; });
+  styleDataHeader(headerRow);
+
+  // Data
+  const dataStart = 8;
+  employees.forEach((emp, idx) => {
+    const row = ws.getRow(dataStart + idx);
+    row.getCell(1).value = emp.name;
+    row.getCell(2).value = emp.employee_name;
+    row.getCell(3).value = emp.department || '';
+    row.getCell(4).value = emp.designation || '';
+    row.getCell(5).value = emp.company || '';
+    row.getCell(6).value = emp.cell_phone || '';
+    row.getCell(7).value = emp.company_email || emp.personal_email || '';
+    row.getCell(8).value = emp.date_of_joining || '';
+    row.getCell(9).value = emp.employment_type || '';
+    row.getCell(10).value = emp.status;
+  });
+  const dataEnd = dataStart + employees.length - 1;
+  styleDataRows(ws, dataStart, dataEnd);
+
+  // Footer
+  addFooter(ws, dataEnd + 3, colCount);
+
+  // Column widths
+  ws.getColumn(1).width = 18;
+  ws.getColumn(2).width = 28;
+  ws.getColumn(3).width = 20;
+  ws.getColumn(4).width = 22;
+  ws.getColumn(5).width = 24;
+  ws.getColumn(6).width = 18;
+  ws.getColumn(7).width = 28;
+  ws.getColumn(8).width = 14;
+  ws.getColumn(9).width = 16;
+  ws.getColumn(10).width = 12;
+
+  const buffer = await wb.xlsx.writeBuffer();
+  triggerDownload(buffer, `EnterHR_Empleados_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
