@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Database, Trash2, Play, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
+import { Database, Trash2, Play, AlertTriangle, CheckCircle2, XCircle, Info } from 'lucide-react';
 import { seedDemoData, cleanDemoData, loadDemoTracker, type DemoTracker, type ProgressCallback } from '@/lib/demoData';
 
 interface LogEntry {
@@ -72,6 +72,17 @@ export default function AdminDemoData() {
         <p className="mt-1 text-gray-500">
           Crea o elimina datos de ejemplo para probar todos los módulos del portal
         </p>
+      </div>
+
+      {/* Temporary page notice */}
+      <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+        <div className="flex gap-3">
+          <Info className="h-5 w-5 shrink-0 text-blue-500" />
+          <p className="text-sm text-blue-800">
+            Esta pagina es temporal y solo sirve para administrar los datos de demo.
+            Se eliminara cuando el sistema este en produccion con datos reales.
+          </p>
+        </div>
       </div>
 
       {/* Status Card */}
