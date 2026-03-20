@@ -50,7 +50,6 @@ import AdminRoles from '@/pages/admin/AdminRoles';
 import AdminUsers from '@/pages/admin/AdminUsers';
 import AdminCatalogs from '@/pages/admin/AdminCatalogs';
 import AdminPlatform from '@/pages/admin/AdminPlatform';
-import AdminDemoData from '@/pages/admin/AdminDemoData';
 // Portal de empleado
 import EmployeeDashboard from '@/pages/employee/EmployeeDashboard';
 import MyProfile from '@/pages/employee/MyProfile';
@@ -481,14 +480,6 @@ export default function App() {
               element={
                 <ProtectedRoute requiredSection="admin-platform">
                   <AdminPlatform />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="admin/demo-data"
-              element={
-                <ProtectedRoute requiredSection="admin-demo-data">
-                  <AdminDemoData />
                 </ProtectedRoute>
               }
             />

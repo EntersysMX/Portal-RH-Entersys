@@ -10,7 +10,6 @@ import {
   BookOpen,
   CloudDownload,
   SlidersHorizontal,
-  FlaskConical,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useMemo } from 'react';
@@ -59,7 +58,6 @@ const adminPanelNavigation: NavItem[] = [
   { name: 'Usuarios', href: '/admin/users', icon: Users, section: 'admin-users', category: 'admin' },
   { name: 'Catálogos', href: '/admin/catalogs', icon: Database, section: 'admin-catalogs', category: 'admin' },
   { name: 'Plataforma', href: '/admin/platform', icon: BookOpen, section: 'admin-platform', category: 'admin' },
-  { name: 'Datos Demo', href: '/admin/demo-data', icon: FlaskConical, section: 'admin-demo-data', category: 'admin' },
   { name: 'Google Sync', href: '/google-sync', icon: CloudDownload, section: 'google-sync', category: 'admin' },
   { name: 'Configuración', href: '/settings', icon: Settings, section: 'settings', category: 'admin' },
 ];
