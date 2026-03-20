@@ -643,3 +643,203 @@ export interface BenefitEntry {
   notes?: string;
   creation?: string;
 }
+
+// ============================================
+// INTERVIEW (Frappe HR)
+// ============================================
+export interface Interview {
+  name: string;
+  job_applicant: string;
+  interview_round: string;
+  scheduled_date: string;
+  status: 'Pending' | 'Under Review' | 'Cleared' | 'Rejected';
+  rating: number;
+  average_rating: number;
+  interviewer: string;
+}
+
+// ============================================
+// JOB OFFER (Frappe HR)
+// ============================================
+export interface JobOffer {
+  name: string;
+  job_applicant: string;
+  applicant_name: string;
+  offer_date: string;
+  designation: string;
+  status: 'Awaiting Response' | 'Accepted' | 'Rejected';
+  company: string;
+}
+
+// ============================================
+// TRAINING PROGRAM (Frappe HR)
+// ============================================
+export interface TrainingProgram {
+  name: string;
+  program_name: string;
+  trainer_name: string;
+  trainer_email: string;
+  supplier: string;
+  status: 'Scheduled' | 'Completed' | 'Cancelled';
+}
+
+// ============================================
+// TRAINING RESULT (Frappe HR)
+// ============================================
+export interface TrainingResult {
+  name: string;
+  employee: string;
+  employee_name: string;
+  training_event: string;
+  hours: number;
+  grade: string;
+  result: 'Pass' | 'Fail';
+  comments: string;
+}
+
+// ============================================
+// GOAL (Frappe HR)
+// ============================================
+export interface Goal {
+  name: string;
+  employee: string;
+  employee_name: string;
+  goal_name: string;
+  status: 'Pending' | 'In Progress' | 'Completed' | 'Cancelled';
+  start_date: string;
+  end_date: string;
+  kra: string;
+  per_weightage: number;
+  score: number;
+}
+
+// ============================================
+// ATTENDANCE REQUEST (Frappe HR)
+// ============================================
+export interface AttendanceRequest {
+  name: string;
+  employee: string;
+  employee_name: string;
+  from_date: string;
+  to_date: string;
+  reason: string;
+  half_day: boolean;
+  status: 'Open' | 'Approved' | 'Rejected';
+  explanation: string;
+}
+
+// ============================================
+// SALARY STRUCTURE (Frappe HR)
+// ============================================
+export interface SalaryStructure {
+  name: string;
+  company: string;
+  is_active: string;
+  payroll_frequency: string;
+  salary_slip_based_on_timesheet: boolean;
+  docstatus: number;
+}
+
+// ============================================
+// ADDITIONAL SALARY (Frappe HR)
+// ============================================
+export interface AdditionalSalary {
+  name: string;
+  employee: string;
+  employee_name: string;
+  salary_component: string;
+  amount: number;
+  payroll_date: string;
+  type: 'Earning' | 'Deduction';
+  company: string;
+}
+
+// ============================================
+// EMPLOYEE ADVANCE (Frappe HR)
+// ============================================
+export interface EmployeeAdvance {
+  name: string;
+  employee: string;
+  employee_name: string;
+  purpose: string;
+  advance_amount: number;
+  paid_amount: number;
+  return_amount: number;
+  status: 'Draft' | 'Unpaid' | 'Paid' | 'Claimed' | 'Returned' | 'Partly Claimed and Returned' | 'Cancelled';
+  posting_date: string;
+  company: string;
+}
+
+// ============================================
+// LEAVE TYPE (Frappe HR)
+// ============================================
+export interface LeaveType {
+  name: string;
+  leave_type_name: string;
+  max_leaves_allowed: number;
+  is_carry_forward: boolean;
+  is_earned_leave: boolean;
+  allow_negative: boolean;
+}
+
+// ============================================
+// LEAVE ALLOCATION (Frappe HR)
+// ============================================
+export interface LeaveAllocation {
+  name: string;
+  employee: string;
+  employee_name: string;
+  leave_type: string;
+  new_leaves_allocated: number;
+  total_leaves_allocated: number;
+  from_date: string;
+  to_date: string;
+}
+
+// ============================================
+// LEAVE POLICY (Frappe HR)
+// ============================================
+export interface LeavePolicy {
+  name: string;
+  leave_policy_details: { leave_type: string; annual_allocation: number }[];
+}
+
+// ============================================
+// HOLIDAY LIST (Frappe HR)
+// ============================================
+export interface HolidayList {
+  name: string;
+  holiday_list_name: string;
+  from_date: string;
+  to_date: string;
+  total_holidays: number;
+  country: string;
+}
+
+// ============================================
+// COMPENSATORY LEAVE REQUEST (Frappe HR)
+// ============================================
+export interface CompensatoryLeaveRequest {
+  name: string;
+  employee: string;
+  employee_name: string;
+  leave_type: string;
+  work_from_date: string;
+  work_end_date: string;
+  reason: string;
+  status: 'Draft' | 'Approved' | 'Rejected';
+}
+
+// ============================================
+// LEAVE ENCASHMENT (Frappe HR)
+// ============================================
+export interface LeaveEncashment {
+  name: string;
+  employee: string;
+  employee_name: string;
+  leave_type: string;
+  encashable_days: number;
+  encashment_amount: number;
+  leave_period: string;
+  currency: string;
+}

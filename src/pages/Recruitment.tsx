@@ -2,21 +2,34 @@ import { useState } from 'react';
 import { Plus, Briefcase, Users, Clock, CheckCircle2, MapPin, Building2, X } from 'lucide-react';
 import StatsCard from '@/components/ui/StatsCard';
 import StatusBadge from '@/components/ui/StatusBadge';
+import DataTable, { type Column } from '@/components/ui/DataTable';
 import ErrorState from '@/components/ui/ErrorState';
 import Modal from '@/components/ui/Modal';
 import ComboSelect from '@/components/ui/ComboSelect';
-import { useJobOpenings, useJobApplicants, useCreateJobOpening, useDepartments, useDesignations, useCompanies } from '@/hooks/useFrappe';
+import {
+  useJobOpenings, useJobApplicants, useCreateJobOpening,
+  useDepartments, useDesignations, useCompanies,
+  useInterviews, useJobOffers,
+} from '@/hooks/useFrappe';
 import { catalogService } from '@/api/services';
 import { toast } from '@/components/ui/Toast';
-import type { JobOpening, JobApplicant } from '@/types/frappe';
+import type { JobOpening, JobApplicant, Interview, JobOffer } from '@/types/frappe';
 
-/** Strip HTML tags for plain-text preview */
+type Tab = 'openings' | 'applicants' | 'interviews' | 'offers';
+
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'openings', label: 'Vacantes' },
+  { id: 'applicants', label: 'Candidatos' },
+  { id: 'interviews', label: 'Entrevistas' },
+  { id: 'offers', label: 'Ofertas' },
+];
+
 function stripHtml(html: string): string {
   return html.replace(/<[^>]*>/g, '').trim();
 }
 
 export default function Recruitment() {
-  const [activeTab, setActiveTab] = useState<'openings' | 'applicants'>('openings');
+  const [activeTab, setActiveTab] = useState<Tab>('openings');
   const [showNewModal, setShowNewModal] = useState(false);
   const [selectedOpening, setSelectedOpening] = useState<JobOpening | null>(null);
   const [applicantFilter, setApplicantFilter] = useState<string>('');
@@ -31,6 +44,8 @@ export default function Recruitment() {
 
   const { data: openings, isLoading: loadingOpenings, isError: errorOpenings, refetch: refetchOpenings } = useJobOpenings();
   const { data: applicants, isLoading: loadingApplicants, isError: errorApplicants, refetch: refetchApplicants } = useJobApplicants();
+  const { data: interviews, isLoading: loadingInterviews, isError: errorInterviews, refetch: refetchInterviews } = useInterviews();
+  const { data: offers, isLoading: loadingOffers, isError: errorOffers, refetch: refetchOffers } = useJobOffers();
   const { data: departments } = useDepartments();
   const { data: designations } = useDesignations();
   const { data: companies } = useCompanies();
@@ -55,36 +70,17 @@ export default function Recruitment() {
 
   const handleCreate = async () => {
     try {
-      // Pre-create catalog entries that don't exist
       const promises: Promise<void>[] = [];
-
       if (newOpening.company && !companyOptions.some((o) => o.value === newOpening.company)) {
-        promises.push(
-          catalogService.ensureExists('Company', {
-            company_name: newOpening.company,
-            abbr: newOpening.company.substring(0, 5).toUpperCase(),
-            default_currency: 'MXN',
-            country: 'Mexico',
-          })
-        );
+        promises.push(catalogService.ensureExists('Company', { company_name: newOpening.company, abbr: newOpening.company.substring(0, 5).toUpperCase(), default_currency: 'MXN', country: 'Mexico' }));
       }
       if (newOpening.designation && !designationOptions.some((o) => o.value === newOpening.designation)) {
-        promises.push(
-          catalogService.ensureExists('Designation', { designation: newOpening.designation })
-        );
+        promises.push(catalogService.ensureExists('Designation', { designation: newOpening.designation }));
       }
       if (newOpening.department && !departmentOptions.some((o) => o.value === newOpening.department)) {
-        promises.push(
-          catalogService.ensureExists('Department', {
-            department_name: newOpening.department,
-            company: newOpening.company || undefined,
-          })
-        );
+        promises.push(catalogService.ensureExists('Department', { department_name: newOpening.department, company: newOpening.company || undefined }));
       }
-
-      if (promises.length > 0) {
-        await Promise.all(promises);
-      }
+      if (promises.length > 0) await Promise.all(promises);
 
       await createMutation.mutateAsync(newOpening);
       toast.success('Vacante creada', 'La vacante se publicó correctamente.');
@@ -94,6 +90,25 @@ export default function Recruitment() {
       toast.fromError(err);
     }
   };
+
+  // Interview columns
+  const interviewColumns: Column<Interview>[] = [
+    { key: 'job_applicant', header: 'Candidato' },
+    { key: 'interview_round', header: 'Ronda' },
+    { key: 'scheduled_date', header: 'Fecha' },
+    { key: 'interviewer', header: 'Entrevistador' },
+    { key: 'average_rating', header: 'Calificación', render: (i) => <span className="font-medium">{i.average_rating ?? '-'}</span> },
+    { key: 'status', header: 'Estado', render: (i) => <StatusBadge status={i.status} /> },
+  ];
+
+  // Job Offer columns
+  const offerColumns: Column<JobOffer>[] = [
+    { key: 'applicant_name', header: 'Candidato' },
+    { key: 'designation', header: 'Puesto' },
+    { key: 'offer_date', header: 'Fecha Oferta' },
+    { key: 'company', header: 'Empresa' },
+    { key: 'status', header: 'Estado', render: (o) => <StatusBadge status={o.status} /> },
+  ];
 
   return (
     <div className="space-y-6">
@@ -108,7 +123,6 @@ export default function Recruitment() {
         </button>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-4">
         <StatsCard title="Vacantes Abiertas" value={openCount} icon={Briefcase} color="blue" />
         <StatsCard title="Total Candidatos" value={totalApplicants} icon={Users} color="purple" />
@@ -119,10 +133,7 @@ export default function Recruitment() {
       {/* Tabs */}
       <div className="border-b border-gray-200">
         <div className="flex gap-8">
-          {[
-            { id: 'openings' as const, label: 'Vacantes' },
-            { id: 'applicants' as const, label: 'Candidatos' },
-          ].map((tab) => (
+          {TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
@@ -138,7 +149,7 @@ export default function Recruitment() {
         </div>
       </div>
 
-      {/* Content */}
+      {/* Openings */}
       {activeTab === 'openings' && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {loadingOpenings ? (
@@ -146,13 +157,9 @@ export default function Recruitment() {
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" />
             </div>
           ) : errorOpenings ? (
-            <div className="col-span-3">
-              <ErrorState onRetry={refetchOpenings} compact />
-            </div>
+            <div className="col-span-3"><ErrorState onRetry={refetchOpenings} compact /></div>
           ) : openings?.length === 0 ? (
-            <div className="col-span-3 py-12 text-center text-gray-400">
-              No hay vacantes. Crea una nueva desde el botón 'Nueva Vacante'.
-            </div>
+            <div className="col-span-3 py-12 text-center text-gray-400">No hay vacantes. Crea una nueva desde el botón &apos;Nueva Vacante&apos;.</div>
           ) : (
             openings?.map((opening: JobOpening) => (
               <div key={opening.name} className="card transition-shadow hover:shadow-md">
@@ -166,26 +173,11 @@ export default function Recruitment() {
                   {opening.designation && <p>{opening.designation}</p>}
                 </div>
                 {opening.description && (
-                  <p className="mt-3 line-clamp-2 text-sm text-gray-400">
-                    {stripHtml(opening.description)}
-                  </p>
+                  <p className="mt-3 line-clamp-2 text-sm text-gray-400">{stripHtml(opening.description)}</p>
                 )}
                 <div className="mt-4 flex gap-2">
-                  <button
-                    onClick={() => setSelectedOpening(opening)}
-                    className="btn-secondary flex-1 text-xs"
-                  >
-                    Ver Detalle
-                  </button>
-                  <button
-                    onClick={() => {
-                      setApplicantFilter(opening.name);
-                      setActiveTab('applicants');
-                    }}
-                    className="btn-primary flex-1 text-xs"
-                  >
-                    Candidatos
-                  </button>
+                  <button onClick={() => setSelectedOpening(opening)} className="btn-secondary flex-1 text-xs">Ver Detalle</button>
+                  <button onClick={() => { setApplicantFilter(opening.name); setActiveTab('applicants'); }} className="btn-primary flex-1 text-xs">Candidatos</button>
                 </div>
               </div>
             ))
@@ -193,6 +185,7 @@ export default function Recruitment() {
         </div>
       )}
 
+      {/* Applicants */}
       {activeTab === 'applicants' && (() => {
         const filtered = applicantFilter
           ? applicants?.filter((a) => a.job_title === applicantFilter || a.name === applicantFilter)
@@ -204,60 +197,33 @@ export default function Recruitment() {
                 <span className="text-sm text-gray-500">Filtrando por vacante:</span>
                 <span className="inline-flex items-center gap-1 rounded-full bg-primary-100 px-3 py-1 text-sm font-medium text-primary-700">
                   {applicantFilter}
-                  <button onClick={() => setApplicantFilter('')} className="ml-1 rounded-full p-0.5 hover:bg-primary-200">
-                    <X className="h-3 w-3" />
-                  </button>
+                  <button onClick={() => setApplicantFilter('')} className="ml-1 rounded-full p-0.5 hover:bg-primary-200"><X className="h-3 w-3" /></button>
                 </span>
               </div>
             )}
             <div className="table-container">
               <table>
                 <thead>
-                  <tr>
-                    <th>Candidato</th>
-                    <th>Vacante</th>
-                    <th>Email</th>
-                    <th>Estado</th>
-                    <th>Rating</th>
-                  </tr>
+                  <tr><th>Candidato</th><th>Vacante</th><th>Email</th><th>Estado</th><th>Rating</th></tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {loadingApplicants ? (
-                    <tr>
-                      <td colSpan={5} className="py-12 text-center">
-                        <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" />
-                      </td>
-                    </tr>
+                    <tr><td colSpan={5} className="py-12 text-center"><div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" /></td></tr>
                   ) : errorApplicants ? (
-                    <tr>
-                      <td colSpan={5}>
-                        <ErrorState onRetry={refetchApplicants} compact />
-                      </td>
-                    </tr>
+                    <tr><td colSpan={5}><ErrorState onRetry={refetchApplicants} compact /></td></tr>
                   ) : !filtered || filtered.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="py-12 text-center text-gray-400">
-                        {applicantFilter ? 'No hay candidatos para esta vacante' : 'No hay candidatos registrados'}
-                      </td>
-                    </tr>
+                    <tr><td colSpan={5} className="py-12 text-center text-gray-400">{applicantFilter ? 'No hay candidatos para esta vacante' : 'No hay candidatos registrados'}</td></tr>
                   ) : (
                     filtered.map((app: JobApplicant) => (
                       <tr key={app.name}>
                         <td className="font-medium text-gray-900">{app.applicant_name}</td>
                         <td>{app.job_title}</td>
                         <td>{app.email_id}</td>
-                        <td>
-                          <StatusBadge status={app.status} />
-                        </td>
+                        <td><StatusBadge status={app.status} /></td>
                         <td>
                           <div className="flex gap-0.5">
                             {[1, 2, 3, 4, 5].map((star) => (
-                              <span
-                                key={star}
-                                className={star <= (app.rating ?? 0) ? 'text-yellow-400' : 'text-gray-200'}
-                              >
-                                ★
-                              </span>
+                              <span key={star} className={star <= (app.rating ?? 0) ? 'text-yellow-400' : 'text-gray-200'}>★</span>
                             ))}
                           </div>
                         </td>
@@ -271,6 +237,30 @@ export default function Recruitment() {
         );
       })()}
 
+      {/* Interviews */}
+      {activeTab === 'interviews' && (
+        <DataTable<Interview>
+          columns={interviewColumns}
+          data={interviews ?? []}
+          isLoading={loadingInterviews}
+          isError={errorInterviews}
+          onRetry={refetchInterviews}
+          emptyMessage="No hay entrevistas registradas"
+        />
+      )}
+
+      {/* Offers */}
+      {activeTab === 'offers' && (
+        <DataTable<JobOffer>
+          columns={offerColumns}
+          data={offers ?? []}
+          isLoading={loadingOffers}
+          isError={errorOffers}
+          onRetry={refetchOffers}
+          emptyMessage="No hay ofertas de trabajo registradas"
+        />
+      )}
+
       {/* Detail Modal */}
       <Modal
         isOpen={!!selectedOpening}
@@ -280,56 +270,28 @@ export default function Recruitment() {
         footer={
           <>
             <button onClick={() => setSelectedOpening(null)} className="btn-secondary">Cerrar</button>
-            <button
-              onClick={() => {
-                if (selectedOpening) {
-                  setApplicantFilter(selectedOpening.name);
-                  setActiveTab('applicants');
-                  setSelectedOpening(null);
-                }
-              }}
-              className="btn-primary"
-            >
-              Ver Candidatos
-            </button>
+            <button onClick={() => { if (selectedOpening) { setApplicantFilter(selectedOpening.name); setActiveTab('applicants'); setSelectedOpening(null); } }} className="btn-primary">Ver Candidatos</button>
           </>
         }
       >
         {selectedOpening && (
           <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <StatusBadge status={selectedOpening.status} />
-            </div>
+            <div className="flex items-center gap-2"><StatusBadge status={selectedOpening.status} /></div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {selectedOpening.department && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Building2 className="h-4 w-4 text-gray-400" />
-                  <span className="text-gray-500">Departamento:</span>
-                  <span className="font-medium text-gray-900">{selectedOpening.department}</span>
-                </div>
+                <div className="flex items-center gap-2 text-sm"><Building2 className="h-4 w-4 text-gray-400" /><span className="text-gray-500">Departamento:</span><span className="font-medium text-gray-900">{selectedOpening.department}</span></div>
               )}
               {selectedOpening.designation && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Briefcase className="h-4 w-4 text-gray-400" />
-                  <span className="text-gray-500">Puesto:</span>
-                  <span className="font-medium text-gray-900">{selectedOpening.designation}</span>
-                </div>
+                <div className="flex items-center gap-2 text-sm"><Briefcase className="h-4 w-4 text-gray-400" /><span className="text-gray-500">Puesto:</span><span className="font-medium text-gray-900">{selectedOpening.designation}</span></div>
               )}
               {selectedOpening.location && (
-                <div className="flex items-center gap-2 text-sm">
-                  <MapPin className="h-4 w-4 text-gray-400" />
-                  <span className="text-gray-500">Ubicación:</span>
-                  <span className="font-medium text-gray-900">{selectedOpening.location}</span>
-                </div>
+                <div className="flex items-center gap-2 text-sm"><MapPin className="h-4 w-4 text-gray-400" /><span className="text-gray-500">Ubicación:</span><span className="font-medium text-gray-900">{selectedOpening.location}</span></div>
               )}
             </div>
             {selectedOpening.description && (
               <div>
                 <h4 className="mb-2 text-sm font-semibold text-gray-700">Descripción</h4>
-                <div
-                  className="prose prose-sm max-w-none text-gray-600"
-                  dangerouslySetInnerHTML={{ __html: selectedOpening.description }}
-                />
+                <div className="prose prose-sm max-w-none text-gray-600" dangerouslySetInnerHTML={{ __html: selectedOpening.description }} />
               </div>
             )}
           </div>
@@ -337,62 +299,18 @@ export default function Recruitment() {
       </Modal>
 
       {/* New Opening Modal */}
-      <Modal
-        isOpen={showNewModal}
-        onClose={() => setShowNewModal(false)}
-        title="Nueva Vacante"
-        size="lg"
-        footer={
-          <>
-            <button onClick={() => setShowNewModal(false)} className="btn-secondary">Cancelar</button>
-            <button onClick={handleCreate} disabled={createMutation.isPending} className="btn-primary">
-              {createMutation.isPending ? 'Creando...' : 'Publicar Vacante'}
-            </button>
-          </>
-        }
+      <Modal isOpen={showNewModal} onClose={() => setShowNewModal(false)} title="Nueva Vacante" size="lg"
+        footer={<><button onClick={() => setShowNewModal(false)} className="btn-secondary">Cancelar</button><button onClick={handleCreate} disabled={createMutation.isPending} className="btn-primary">{createMutation.isPending ? 'Creando...' : 'Publicar Vacante'}</button></>}
       >
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Título del puesto</label>
-              <input className="input" value={newOpening.job_title} onChange={(e) => setNewOpening({ ...newOpening, job_title: e.target.value })} />
-            </div>
-            <div>
-              <ComboSelect
-                label="Designación"
-                options={designationOptions}
-                value={newOpening.designation}
-                onChange={(val) => setNewOpening({ ...newOpening, designation: val })}
-                placeholder="Seleccionar o crear puesto"
-              />
-            </div>
-            <div>
-              <ComboSelect
-                label="Departamento"
-                options={departmentOptions}
-                value={newOpening.department}
-                onChange={(val) => setNewOpening({ ...newOpening, department: val })}
-                placeholder="Seleccionar o crear departamento"
-              />
-            </div>
-            <div>
-              <ComboSelect
-                label="Empresa"
-                options={companyOptions}
-                value={newOpening.company}
-                onChange={(val) => setNewOpening({ ...newOpening, company: val })}
-                placeholder="Seleccionar o crear empresa"
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Ubicación</label>
-              <input className="input" value={newOpening.location} onChange={(e) => setNewOpening({ ...newOpening, location: e.target.value })} />
-            </div>
+            <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Título del puesto</label><input className="input" value={newOpening.job_title} onChange={(e) => setNewOpening({ ...newOpening, job_title: e.target.value })} /></div>
+            <div><ComboSelect label="Designación" options={designationOptions} value={newOpening.designation} onChange={(val) => setNewOpening({ ...newOpening, designation: val })} placeholder="Seleccionar o crear puesto" /></div>
+            <div><ComboSelect label="Departamento" options={departmentOptions} value={newOpening.department} onChange={(val) => setNewOpening({ ...newOpening, department: val })} placeholder="Seleccionar o crear departamento" /></div>
+            <div><ComboSelect label="Empresa" options={companyOptions} value={newOpening.company} onChange={(val) => setNewOpening({ ...newOpening, company: val })} placeholder="Seleccionar o crear empresa" /></div>
+            <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Ubicación</label><input className="input" value={newOpening.location} onChange={(e) => setNewOpening({ ...newOpening, location: e.target.value })} /></div>
           </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Descripción</label>
-            <textarea className="input min-h-[100px]" value={newOpening.description} onChange={(e) => setNewOpening({ ...newOpening, description: e.target.value })} />
-          </div>
+          <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Descripción</label><textarea className="input min-h-[100px]" value={newOpening.description} onChange={(e) => setNewOpening({ ...newOpening, description: e.target.value })} /></div>
         </div>
       </Modal>
     </div>

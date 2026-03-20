@@ -6,6 +6,7 @@ import {
   ArrowLeftRight, PieChart, HardHat, UserCheck,
   Banknote, PiggyBank, Plane, Gift, ArrowUpDown,
   UserX, Clock, Fingerprint, MessageSquareWarning, Star,
+  CalendarX2,
 } from 'lucide-react';
 import type { ModuleDefinition, ModuleManifest } from './types';
 
@@ -97,6 +98,20 @@ export const ALL_MODULES: ModuleDefinition[] = [
     permissions: standardPerms('asistencia', 'asistencia'),
     navItems: [
       { label: 'Asistencia', path: '/attendance', icon: CalendarCheck, section: 'attendance' },
+    ],
+  },
+
+  {
+    id: 'vacaciones',
+    label: 'Vacaciones',
+    description: 'Gestión integral de vacaciones, permisos y días festivos',
+    details: 'Módulo completo de gestión de ausencias: solicitudes de permiso, tipos de permiso, asignación de días, políticas de vacaciones, días festivos, permisos compensatorios y liquidación de vacaciones. Centraliza todo lo relacionado con ausencias del personal.',
+    icon: CalendarX2,
+    category: 'hr',
+    sections: ['leave-management'],
+    permissions: standardPerms('vacaciones', 'vacaciones'),
+    navItems: [
+      { label: 'Vacaciones', path: '/leave-management', icon: CalendarX2, section: 'leave-management' },
     ],
   },
 

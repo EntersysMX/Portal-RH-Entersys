@@ -49,6 +49,21 @@ import type {
   EmployeeSkillMap,
   SavingsFundEntry,
   BenefitEntry,
+  Interview,
+  JobOffer,
+  TrainingProgram,
+  TrainingResult,
+  Goal,
+  AttendanceRequest,
+  SalaryStructure,
+  AdditionalSalary,
+  EmployeeAdvance,
+  LeaveType,
+  LeaveAllocation,
+  LeavePolicy,
+  HolidayList,
+  CompensatoryLeaveRequest,
+  LeaveEncashment,
 } from '@/types/frappe';
 
 // ============================================
@@ -991,6 +1006,246 @@ export const skillMapService = {
 
   update: (name: string, data: Partial<EmployeeSkillMap>) =>
     frappeUpdateDoc<EmployeeSkillMap>('Employee Skill Map', name, data),
+};
+
+// ============================================
+// INTERVIEW SERVICE (Frappe HR)
+// ============================================
+export const interviewService = {
+  list: (params?: { filters?: Record<string, unknown>; limit?: number }) =>
+    frappeGetList<Interview>({
+      doctype: 'Interview',
+      fields: ['*'],
+      filters: params?.filters,
+      limit_page_length: params?.limit || 50,
+      order_by: 'scheduled_date desc',
+    }).catch(() => []),
+
+  create: (data: Partial<Interview>) =>
+    frappeCreateDoc<Interview>('Interview', data),
+};
+
+// ============================================
+// JOB OFFER SERVICE (Frappe HR)
+// ============================================
+export const jobOfferService = {
+  list: (params?: { filters?: Record<string, unknown>; limit?: number }) =>
+    frappeGetList<JobOffer>({
+      doctype: 'Job Offer',
+      fields: ['*'],
+      filters: params?.filters,
+      limit_page_length: params?.limit || 50,
+      order_by: 'offer_date desc',
+    }).catch(() => []),
+
+  create: (data: Partial<JobOffer>) =>
+    frappeCreateDoc<JobOffer>('Job Offer', data),
+};
+
+// ============================================
+// TRAINING PROGRAM SERVICE (Frappe HR)
+// ============================================
+export const trainingProgramService = {
+  list: (params?: { filters?: Record<string, unknown>; limit?: number }) =>
+    frappeGetList<TrainingProgram>({
+      doctype: 'Training Program',
+      fields: ['*'],
+      filters: params?.filters,
+      limit_page_length: params?.limit || 50,
+      order_by: 'creation desc',
+    }).catch(() => []),
+
+  create: (data: Partial<TrainingProgram>) =>
+    frappeCreateDoc<TrainingProgram>('Training Program', data),
+};
+
+// ============================================
+// TRAINING RESULT SERVICE (Frappe HR)
+// ============================================
+export const trainingResultService = {
+  list: (params?: { filters?: Record<string, unknown>; limit?: number }) =>
+    frappeGetList<TrainingResult>({
+      doctype: 'Training Result',
+      fields: ['*'],
+      filters: params?.filters,
+      limit_page_length: params?.limit || 50,
+      order_by: 'creation desc',
+    }).catch(() => []),
+
+  create: (data: Partial<TrainingResult>) =>
+    frappeCreateDoc<TrainingResult>('Training Result', data),
+};
+
+// ============================================
+// GOAL SERVICE (Frappe HR)
+// ============================================
+export const goalService = {
+  list: (params?: { filters?: Record<string, unknown>; limit?: number }) =>
+    frappeGetList<Goal>({
+      doctype: 'Goal',
+      fields: ['*'],
+      filters: params?.filters,
+      limit_page_length: params?.limit || 50,
+      order_by: 'creation desc',
+    }).catch(() => []),
+
+  create: (data: Partial<Goal>) =>
+    frappeCreateDoc<Goal>('Goal', data),
+
+  update: (name: string, data: Partial<Goal>) =>
+    frappeUpdateDoc<Goal>('Goal', name, data),
+};
+
+// ============================================
+// ATTENDANCE REQUEST SERVICE (Frappe HR)
+// ============================================
+export const attendanceRequestService = {
+  list: (params?: { filters?: Record<string, unknown>; limit?: number }) =>
+    frappeGetList<AttendanceRequest>({
+      doctype: 'Attendance Request',
+      fields: ['*'],
+      filters: params?.filters,
+      limit_page_length: params?.limit || 50,
+      order_by: 'creation desc',
+    }).catch(() => []),
+
+  create: (data: Partial<AttendanceRequest>) =>
+    frappeCreateDoc<AttendanceRequest>('Attendance Request', data),
+};
+
+// ============================================
+// SALARY STRUCTURE SERVICE (Frappe HR)
+// ============================================
+export const salaryStructureService = {
+  list: (params?: { filters?: Record<string, unknown>; limit?: number }) =>
+    frappeGetList<SalaryStructure>({
+      doctype: 'Salary Structure',
+      fields: ['*'],
+      filters: params?.filters,
+      limit_page_length: params?.limit || 50,
+      order_by: 'creation desc',
+    }).catch(() => []),
+};
+
+// ============================================
+// ADDITIONAL SALARY SERVICE (Frappe HR)
+// ============================================
+export const additionalSalaryService = {
+  list: (params?: { filters?: Record<string, unknown>; limit?: number }) =>
+    frappeGetList<AdditionalSalary>({
+      doctype: 'Additional Salary',
+      fields: ['*'],
+      filters: params?.filters,
+      limit_page_length: params?.limit || 50,
+      order_by: 'payroll_date desc',
+    }).catch(() => []),
+
+  create: (data: Partial<AdditionalSalary>) =>
+    frappeCreateDoc<AdditionalSalary>('Additional Salary', data),
+};
+
+// ============================================
+// EMPLOYEE ADVANCE SERVICE (Frappe HR)
+// ============================================
+export const employeeAdvanceService = {
+  list: (params?: { filters?: Record<string, unknown>; limit?: number }) =>
+    frappeGetList<EmployeeAdvance>({
+      doctype: 'Employee Advance',
+      fields: ['*'],
+      filters: params?.filters,
+      limit_page_length: params?.limit || 50,
+      order_by: 'posting_date desc',
+    }).catch(() => []),
+
+  create: (data: Partial<EmployeeAdvance>) =>
+    frappeCreateDoc<EmployeeAdvance>('Employee Advance', data),
+};
+
+// ============================================
+// LEAVE TYPE SERVICE (Frappe HR)
+// ============================================
+export const leaveTypeService = {
+  list: () =>
+    frappeGetList<LeaveType>({
+      doctype: 'Leave Type',
+      fields: ['*'],
+      limit_page_length: 50,
+    }).catch(() => []),
+};
+
+// ============================================
+// LEAVE ALLOCATION SERVICE (Frappe HR)
+// ============================================
+export const leaveAllocationService = {
+  list: (params?: { filters?: Record<string, unknown>; limit?: number }) =>
+    frappeGetList<LeaveAllocation>({
+      doctype: 'Leave Allocation',
+      fields: ['*'],
+      filters: params?.filters,
+      limit_page_length: params?.limit || 50,
+      order_by: 'creation desc',
+    }).catch(() => []),
+
+  create: (data: Partial<LeaveAllocation>) =>
+    frappeCreateDoc<LeaveAllocation>('Leave Allocation', data),
+};
+
+// ============================================
+// LEAVE POLICY SERVICE (Frappe HR)
+// ============================================
+export const leavePolicyService = {
+  list: () =>
+    frappeGetList<LeavePolicy>({
+      doctype: 'Leave Policy',
+      fields: ['*'],
+      limit_page_length: 50,
+    }).catch(() => []),
+};
+
+// ============================================
+// HOLIDAY LIST SERVICE (Frappe HR)
+// ============================================
+export const holidayListService = {
+  list: () =>
+    frappeGetList<HolidayList>({
+      doctype: 'Holiday List',
+      fields: ['*'],
+      limit_page_length: 50,
+    }).catch(() => []),
+};
+
+// ============================================
+// COMPENSATORY LEAVE REQUEST SERVICE (Frappe HR)
+// ============================================
+export const compensatoryLeaveService = {
+  list: (params?: { filters?: Record<string, unknown>; limit?: number }) =>
+    frappeGetList<CompensatoryLeaveRequest>({
+      doctype: 'Compensatory Leave Request',
+      fields: ['*'],
+      filters: params?.filters,
+      limit_page_length: params?.limit || 50,
+      order_by: 'creation desc',
+    }).catch(() => []),
+
+  create: (data: Partial<CompensatoryLeaveRequest>) =>
+    frappeCreateDoc<CompensatoryLeaveRequest>('Compensatory Leave Request', data),
+};
+
+// ============================================
+// LEAVE ENCASHMENT SERVICE (Frappe HR)
+// ============================================
+export const leaveEncashmentService = {
+  list: (params?: { filters?: Record<string, unknown>; limit?: number }) =>
+    frappeGetList<LeaveEncashment>({
+      doctype: 'Leave Encashment',
+      fields: ['*'],
+      filters: params?.filters,
+      limit_page_length: params?.limit || 50,
+      order_by: 'creation desc',
+    }).catch(() => []),
+
+  create: (data: Partial<LeaveEncashment>) =>
+    frappeCreateDoc<LeaveEncashment>('Leave Encashment', data),
 };
 
 // ============================================

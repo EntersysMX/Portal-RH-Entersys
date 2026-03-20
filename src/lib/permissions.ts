@@ -36,6 +36,7 @@ export type MenuSection =
   | 'settings'
   | 'notices'
   | 'google-sync'
+  | 'leave-management'
   // HR Extended
   | 'surveys'
   | 'work-climate'
@@ -79,7 +80,7 @@ export type Action = 'view' | 'create' | 'edit' | 'delete' | 'export';
 const PROFILE_MENU_ACCESS: Record<UserProfile, MenuSection[]> = {
   admin: [
     'dashboard', 'employees', 'employee-detail', 'recruitment', 'performance',
-    'attendance', 'payroll', 'nomina-mx', 'nomina-usa', 'nomina-col', 'expenses',
+    'attendance', 'leave-management', 'payroll', 'nomina-mx', 'nomina-usa', 'nomina-col', 'expenses',
     'training', 'organization', 'settings', 'notices', 'google-sync',
     // HR Extended
     'surveys', 'work-climate', 'disabilities', 'discipline',
@@ -96,7 +97,7 @@ const PROFILE_MENU_ACCESS: Record<UserProfile, MenuSection[]> = {
   ],
   hr_manager: [
     'dashboard', 'employees', 'employee-detail', 'recruitment', 'performance',
-    'attendance', 'payroll', 'nomina-mx', 'nomina-usa', 'nomina-col', 'expenses',
+    'attendance', 'leave-management', 'payroll', 'nomina-mx', 'nomina-usa', 'nomina-col', 'expenses',
     'training', 'organization', 'notices',
     // HR Extended
     'surveys', 'work-climate', 'disabilities', 'discipline',
@@ -109,7 +110,7 @@ const PROFILE_MENU_ACCESS: Record<UserProfile, MenuSection[]> = {
     'my-training', 'my-organization', 'my-notices',
   ],
   hr_user: [
-    'dashboard', 'employees', 'employee-detail', 'attendance', 'payroll', 'organization', 'notices',
+    'dashboard', 'employees', 'employee-detail', 'attendance', 'leave-management', 'payroll', 'organization', 'notices',
     // HR Extended (limited)
     'surveys', 'disabilities', 'discipline', 'equipment', 'onboarding',
     // Payroll Extended (limited)

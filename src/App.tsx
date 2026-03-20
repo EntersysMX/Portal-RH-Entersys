@@ -43,6 +43,7 @@ import Shifts from '@/pages/Shifts';
 import Checkins from '@/pages/Checkins';
 import Grievances from '@/pages/Grievances';
 import Skills from '@/pages/Skills';
+import LeaveManagement from '@/pages/LeaveManagement';
 // Admin panel
 import AdminModules from '@/pages/admin/AdminModules';
 import AdminRoles from '@/pages/admin/AdminRoles';
@@ -429,6 +430,14 @@ export default function App() {
               element={
                 <ProtectedRoute requiredSection="skills">
                   <Skills />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="leave-management"
+              element={
+                <ProtectedRoute requiredSection="leave-management">
+                  <LeaveManagement />
                 </ProtectedRoute>
               }
             />

@@ -37,6 +37,21 @@ import {
   checkinService,
   grievanceService,
   skillMapService,
+  interviewService,
+  jobOfferService,
+  trainingProgramService,
+  trainingResultService,
+  goalService,
+  attendanceRequestService,
+  salaryStructureService,
+  additionalSalaryService,
+  employeeAdvanceService,
+  leaveTypeService,
+  leaveAllocationService,
+  leavePolicyService,
+  holidayListService,
+  compensatoryLeaveService,
+  leaveEncashmentService,
 } from '@/api/services';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from '@/components/ui/Toast';
@@ -1043,4 +1058,173 @@ export function useSkillMaps(filters?: Record<string, unknown>) {
 export function useCreateSkillMap() {
   const qc = useQueryClient();
   return useMutation({ mutationFn: skillMapService.create, onSuccess: () => qc.invalidateQueries({ queryKey: ['skill-maps'] }), onError: (error) => toast.fromError(error) });
+}
+
+// ============================================
+// INTERVIEWS (Entrevistas)
+// ============================================
+export function useInterviews(filters?: Record<string, unknown>) {
+  return useQuery({ queryKey: ['interviews', filters], queryFn: () => interviewService.list({ filters }), staleTime: 30_000 });
+}
+
+export function useCreateInterview() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: interviewService.create, onSuccess: () => qc.invalidateQueries({ queryKey: ['interviews'] }), onError: (error) => toast.fromError(error) });
+}
+
+// ============================================
+// JOB OFFERS (Ofertas de Trabajo)
+// ============================================
+export function useJobOffers(filters?: Record<string, unknown>) {
+  return useQuery({ queryKey: ['job-offers', filters], queryFn: () => jobOfferService.list({ filters }), staleTime: 30_000 });
+}
+
+export function useCreateJobOffer() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: jobOfferService.create, onSuccess: () => qc.invalidateQueries({ queryKey: ['job-offers'] }), onError: (error) => toast.fromError(error) });
+}
+
+// ============================================
+// TRAINING PROGRAMS (Programas de Capacitación)
+// ============================================
+export function useTrainingPrograms(filters?: Record<string, unknown>) {
+  return useQuery({ queryKey: ['training-programs', filters], queryFn: () => trainingProgramService.list({ filters }), staleTime: 60_000 });
+}
+
+export function useCreateTrainingProgram() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: trainingProgramService.create, onSuccess: () => qc.invalidateQueries({ queryKey: ['training-programs'] }), onError: (error) => toast.fromError(error) });
+}
+
+// ============================================
+// TRAINING RESULTS (Resultados de Capacitación)
+// ============================================
+export function useTrainingResults(filters?: Record<string, unknown>) {
+  return useQuery({ queryKey: ['training-results', filters], queryFn: () => trainingResultService.list({ filters }), staleTime: 60_000 });
+}
+
+export function useCreateTrainingResult() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: trainingResultService.create, onSuccess: () => qc.invalidateQueries({ queryKey: ['training-results'] }), onError: (error) => toast.fromError(error) });
+}
+
+// ============================================
+// GOALS (Objetivos)
+// ============================================
+export function useGoals(filters?: Record<string, unknown>) {
+  return useQuery({ queryKey: ['goals', filters], queryFn: () => goalService.list({ filters }), staleTime: 60_000 });
+}
+
+export function useCreateGoal() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: goalService.create, onSuccess: () => qc.invalidateQueries({ queryKey: ['goals'] }), onError: (error) => toast.fromError(error) });
+}
+
+export function useUpdateGoal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ name, data }: { name: string; data: Record<string, unknown> }) => goalService.update(name, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['goals'] }),
+    onError: (error) => toast.fromError(error),
+  });
+}
+
+// ============================================
+// ATTENDANCE REQUESTS (Solicitudes de Asistencia)
+// ============================================
+export function useAttendanceRequests(filters?: Record<string, unknown>) {
+  return useQuery({ queryKey: ['attendance-requests', filters], queryFn: () => attendanceRequestService.list({ filters }), staleTime: 30_000 });
+}
+
+export function useCreateAttendanceRequest() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: attendanceRequestService.create, onSuccess: () => qc.invalidateQueries({ queryKey: ['attendance-requests'] }), onError: (error) => toast.fromError(error) });
+}
+
+// ============================================
+// SALARY STRUCTURES (Estructuras Salariales)
+// ============================================
+export function useSalaryStructures(filters?: Record<string, unknown>) {
+  return useQuery({ queryKey: ['salary-structures', filters], queryFn: () => salaryStructureService.list({ filters }), staleTime: 60_000 });
+}
+
+// ============================================
+// ADDITIONAL SALARIES (Salario Adicional)
+// ============================================
+export function useAdditionalSalaries(filters?: Record<string, unknown>) {
+  return useQuery({ queryKey: ['additional-salaries', filters], queryFn: () => additionalSalaryService.list({ filters }), staleTime: 30_000 });
+}
+
+export function useCreateAdditionalSalary() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: additionalSalaryService.create, onSuccess: () => qc.invalidateQueries({ queryKey: ['additional-salaries'] }), onError: (error) => toast.fromError(error) });
+}
+
+// ============================================
+// EMPLOYEE ADVANCES (Anticipos)
+// ============================================
+export function useEmployeeAdvances(filters?: Record<string, unknown>) {
+  return useQuery({ queryKey: ['employee-advances', filters], queryFn: () => employeeAdvanceService.list({ filters }), staleTime: 30_000 });
+}
+
+export function useCreateEmployeeAdvance() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: employeeAdvanceService.create, onSuccess: () => qc.invalidateQueries({ queryKey: ['employee-advances'] }), onError: (error) => toast.fromError(error) });
+}
+
+// ============================================
+// LEAVE TYPES (Tipos de Permiso)
+// ============================================
+export function useLeaveTypes() {
+  return useQuery({ queryKey: ['leave-types'], queryFn: leaveTypeService.list, staleTime: 300_000 });
+}
+
+// ============================================
+// LEAVE ALLOCATIONS (Asignaciones de Permiso)
+// ============================================
+export function useLeaveAllocations(filters?: Record<string, unknown>) {
+  return useQuery({ queryKey: ['leave-allocations', filters], queryFn: () => leaveAllocationService.list({ filters }), staleTime: 30_000 });
+}
+
+export function useCreateLeaveAllocation() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: leaveAllocationService.create, onSuccess: () => qc.invalidateQueries({ queryKey: ['leave-allocations'] }), onError: (error) => toast.fromError(error) });
+}
+
+// ============================================
+// LEAVE POLICIES (Políticas de Permiso)
+// ============================================
+export function useLeavePolicies() {
+  return useQuery({ queryKey: ['leave-policies'], queryFn: leavePolicyService.list, staleTime: 300_000 });
+}
+
+// ============================================
+// HOLIDAY LISTS (Días Festivos)
+// ============================================
+export function useHolidayLists() {
+  return useQuery({ queryKey: ['holiday-lists'], queryFn: holidayListService.list, staleTime: 300_000 });
+}
+
+// ============================================
+// COMPENSATORY LEAVE REQUESTS
+// ============================================
+export function useCompensatoryLeaves(filters?: Record<string, unknown>) {
+  return useQuery({ queryKey: ['compensatory-leaves', filters], queryFn: () => compensatoryLeaveService.list({ filters }), staleTime: 30_000 });
+}
+
+export function useCreateCompensatoryLeave() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: compensatoryLeaveService.create, onSuccess: () => qc.invalidateQueries({ queryKey: ['compensatory-leaves'] }), onError: (error) => toast.fromError(error) });
+}
+
+// ============================================
+// LEAVE ENCASHMENTS
+// ============================================
+export function useLeaveEncashments(filters?: Record<string, unknown>) {
+  return useQuery({ queryKey: ['leave-encashments', filters], queryFn: () => leaveEncashmentService.list({ filters }), staleTime: 30_000 });
+}
+
+export function useCreateLeaveEncashment() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: leaveEncashmentService.create, onSuccess: () => qc.invalidateQueries({ queryKey: ['leave-encashments'] }), onError: (error) => toast.fromError(error) });
 }
