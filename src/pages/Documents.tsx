@@ -2,9 +2,13 @@ import { useState, useRef } from 'react';
 import {
   FileText, Plus, CheckCircle, XCircle, FolderOpen,
   Trash2, Edit, Eye, Upload, File, Download, Printer, User, Search,
+  FileType,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { PDFDocument } from 'pdf-lib';
+import Docxtemplater from 'docxtemplater';
+import PizZip from 'pizzip';
+import { saveAs } from 'file-saver';
 import StatsCard from '@/components/ui/StatsCard';
 import DataTable, { Column } from '@/components/ui/DataTable';
 import Modal from '@/components/ui/Modal';
@@ -19,7 +23,7 @@ import {
 } from '@/hooks/useFrappe';
 import { frappeUploadFile } from '@/api/client';
 import { toast } from '@/components/ui/Toast';
-import type { DocumentTemplate, DocumentCategory, Employee } from '@/types/frappe';
+import type { DocumentTemplate, DocumentCategory, DocumentFileType, Employee } from '@/types/frappe';
 
 // ---- Constants ----
 
@@ -36,40 +40,43 @@ const CATEGORY_COLORS: Record<string, string> = {
   'Otro': 'bg-gray-100 text-gray-700',
 };
 
+const ACCEPTED_FILE_TYPES = '.pdf,.docx,.doc,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
 /**
- * Mapeo de campos del empleado a nombres de campos del formulario PDF.
- * El admin debe crear su PDF con estos nombres de campo en el formulario (AcroForm).
+ * Mapeo de placeholders a datos del empleado.
+ * Para PDF: nombres de campos AcroForm.
+ * Para Word: placeholders {{nombre_empleado}} en el texto del documento.
  */
-const FIELD_MAP: { pdfField: string; label: string; getValue: (e: Employee) => string }[] = [
-  { pdfField: 'nombre_empleado',  label: 'Nombre completo',   getValue: (e) => e.employee_name || '' },
-  { pdfField: 'id_empleado',      label: 'ID Empleado',        getValue: (e) => e.name || '' },
-  { pdfField: 'departamento',     label: 'Departamento',       getValue: (e) => e.department || '' },
-  { pdfField: 'puesto',           label: 'Puesto',             getValue: (e) => e.designation || '' },
-  { pdfField: 'empresa',          label: 'Empresa',            getValue: (e) => e.company || '' },
-  { pdfField: 'fecha_ingreso',    label: 'Fecha de ingreso',   getValue: (e) => e.date_of_joining || '' },
-  { pdfField: 'fecha_nacimiento', label: 'Fecha nacimiento',   getValue: (e) => e.date_of_birth || '' },
-  { pdfField: 'genero',           label: 'Genero',             getValue: (e) => e.gender || '' },
-  { pdfField: 'tipo_empleo',      label: 'Tipo de empleo',     getValue: (e) => e.employment_type || '' },
-  { pdfField: 'sucursal',         label: 'Sucursal',           getValue: (e) => e.branch || '' },
-  { pdfField: 'email_personal',   label: 'Email personal',     getValue: (e) => e.personal_email || '' },
-  { pdfField: 'email_empresa',    label: 'Email corporativo',  getValue: (e) => e.company_email || '' },
-  { pdfField: 'telefono',         label: 'Telefono',           getValue: (e) => e.cell_phone || '' },
-  { pdfField: 'fecha_actual',     label: 'Fecha actual',       getValue: () => new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }) },
+const FIELD_MAP: { field: string; label: string; getValue: (e: Employee) => string }[] = [
+  { field: 'nombre_empleado',  label: 'Nombre completo',   getValue: (e) => e.employee_name || '' },
+  { field: 'id_empleado',      label: 'ID Empleado',        getValue: (e) => e.name || '' },
+  { field: 'departamento',     label: 'Departamento',       getValue: (e) => e.department || '' },
+  { field: 'puesto',           label: 'Puesto',             getValue: (e) => e.designation || '' },
+  { field: 'empresa',          label: 'Empresa',            getValue: (e) => e.company || '' },
+  { field: 'fecha_ingreso',    label: 'Fecha de ingreso',   getValue: (e) => e.date_of_joining || '' },
+  { field: 'fecha_nacimiento', label: 'Fecha nacimiento',   getValue: (e) => e.date_of_birth || '' },
+  { field: 'genero',           label: 'Genero',             getValue: (e) => e.gender || '' },
+  { field: 'tipo_empleo',      label: 'Tipo de empleo',     getValue: (e) => e.employment_type || '' },
+  { field: 'sucursal',         label: 'Sucursal',           getValue: (e) => e.branch || '' },
+  { field: 'email_personal',   label: 'Email personal',     getValue: (e) => e.personal_email || '' },
+  { field: 'email_empresa',    label: 'Email corporativo',  getValue: (e) => e.company_email || '' },
+  { field: 'telefono',         label: 'Telefono',           getValue: (e) => e.cell_phone || '' },
+  { field: 'fecha_actual',     label: 'Fecha actual',       getValue: () => new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }) },
 ];
 
-// ---- Empty form ----
+// ---- Helpers ----
 
-interface TemplateForm {
-  title: string;
-  category: DocumentCategory;
-  description: string;
+function detectFileType(file: File): DocumentFileType {
+  const ext = file.name.split('.').pop()?.toLowerCase() || '';
+  if (ext === 'docx' || ext === 'doc') return 'docx';
+  return 'pdf';
 }
 
-const EMPTY_FORM: TemplateForm = {
-  title: '',
-  category: 'Contrato',
-  description: '',
-};
+function detectFileTypeFromUrl(url: string): DocumentFileType {
+  const lower = url.toLowerCase();
+  if (lower.endsWith('.docx') || lower.endsWith('.doc')) return 'docx';
+  return 'pdf';
+}
 
 // ---- PDF Form Filler ----
 
@@ -87,9 +94,8 @@ async function fillPdfWithEmployeeData(pdfUrl: string, employee: Employee): Prom
     const value = mapping.getValue(employee);
     if (!value) continue;
 
-    // Try exact field name match
     const field = fields.find(
-      (f) => f.getName().toLowerCase() === mapping.pdfField.toLowerCase()
+      (f) => f.getName().toLowerCase() === mapping.field.toLowerCase()
     );
 
     if (field) {
@@ -110,6 +116,48 @@ async function fillPdfWithEmployeeData(pdfUrl: string, employee: Employee): Prom
   return pdfDoc.save();
 }
 
+// ---- Word (DOCX) Filler ----
+
+async function fillDocxWithEmployeeData(docxUrl: string, employee: Employee): Promise<Blob> {
+  const response = await fetch(docxUrl);
+  const arrayBuffer = await response.arrayBuffer();
+  const zip = new PizZip(arrayBuffer);
+  const doc = new Docxtemplater(zip, {
+    paragraphLoop: true,
+    linebreaks: true,
+    delimiters: { start: '{{', end: '}}' },
+  });
+
+  // Build data object from field map
+  const data: Record<string, string> = {};
+  for (const mapping of FIELD_MAP) {
+    data[mapping.field] = mapping.getValue(employee);
+  }
+
+  doc.render(data);
+
+  const out = doc.getZip().generate({
+    type: 'blob',
+    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  });
+
+  return out as Blob;
+}
+
+// ---- Empty form ----
+
+interface TemplateForm {
+  title: string;
+  category: DocumentCategory;
+  description: string;
+}
+
+const EMPTY_FORM: TemplateForm = {
+  title: '',
+  category: 'Contrato',
+  description: '',
+};
+
 // ============================================
 // COMPONENT
 // ============================================
@@ -124,9 +172,10 @@ export default function Documents() {
   const [showEditor, setShowEditor] = useState(false);
   const [editingName, setEditingName] = useState<string | null>(null);
   const [editingFileUrl, setEditingFileUrl] = useState<string | null>(null);
+  const [editingFileType, setEditingFileType] = useState<DocumentFileType>('pdf');
   const [form, setForm] = useState<TemplateForm>({ ...EMPTY_FORM });
-  const [pdfFile, setPdfFile] = useState<File | null>(null);
-  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -145,26 +194,36 @@ export default function Documents() {
   const inactiveTemplates = allTemplates.filter((t) => t.status === 'Inactive');
   const categoriesInUse = new Set(allTemplates.map((t) => t.category)).size;
 
+  // ---- Helpers ----
+  const getTemplateFileType = (t: DocumentTemplate): DocumentFileType => {
+    if (t.file_type) return t.file_type;
+    if (t.file_url) return detectFileTypeFromUrl(t.file_url);
+    return 'pdf';
+  };
+
   // ---- Open editor ----
   const openCreate = () => {
     setEditingName(null);
     setEditingFileUrl(null);
+    setEditingFileType('pdf');
     setForm({ ...EMPTY_FORM });
-    setPdfFile(null);
-    setPdfPreviewUrl(null);
+    setSelectedFile(null);
+    setFilePreviewUrl(null);
     setShowEditor(true);
   };
 
   const openEdit = (t: DocumentTemplate) => {
+    const ft = getTemplateFileType(t);
     setEditingName(t.name);
     setEditingFileUrl(t.file_url || null);
+    setEditingFileType(ft);
     setForm({
       title: t.title,
       category: t.category,
       description: t.description || '',
     });
-    setPdfFile(null);
-    setPdfPreviewUrl(t.file_url || null);
+    setSelectedFile(null);
+    setFilePreviewUrl(ft === 'pdf' ? (t.file_url || null) : null);
     setShowEditor(true);
   };
 
@@ -172,24 +231,37 @@ export default function Documents() {
     setShowEditor(false);
     setEditingName(null);
     setEditingFileUrl(null);
-    setPdfFile(null);
-    setPdfPreviewUrl(null);
+    setSelectedFile(null);
+    setFilePreviewUrl(null);
   };
 
   // ---- Handle file select ----
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.type !== 'application/pdf') {
-      toast.error('Formato invalido', 'Solo se permiten archivos PDF.');
+
+    const isPdf = file.type === 'application/pdf';
+    const isDocx = file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      || file.name.endsWith('.docx') || file.name.endsWith('.doc');
+
+    if (!isPdf && !isDocx) {
+      toast.error('Formato invalido', 'Solo se permiten archivos PDF o Word (.docx).');
       return;
     }
     if (file.size > 10 * 1024 * 1024) {
-      toast.error('Archivo muy grande', 'El PDF no debe superar 10 MB.');
+      toast.error('Archivo muy grande', 'El archivo no debe superar 10 MB.');
       return;
     }
-    setPdfFile(file);
-    setPdfPreviewUrl(URL.createObjectURL(file));
+
+    const ft = detectFileType(file);
+    setSelectedFile(file);
+    setEditingFileType(ft);
+
+    if (isPdf) {
+      setFilePreviewUrl(URL.createObjectURL(file));
+    } else {
+      setFilePreviewUrl(null); // No preview for docx in browser
+    }
   };
 
   // ---- Save ----
@@ -198,30 +270,32 @@ export default function Documents() {
       toast.error('Error', 'El titulo es requerido.');
       return;
     }
-    if (!pdfFile && !editingFileUrl) {
-      toast.error('Error', 'Debes subir un archivo PDF.');
+    if (!selectedFile && !editingFileUrl) {
+      toast.error('Error', 'Debes subir un archivo (PDF o Word).');
       return;
     }
 
     try {
       setIsUploading(true);
       let fileUrl = editingFileUrl || '';
+      let fileType = editingFileType;
 
-      if (pdfFile) {
-        const uploaded = await frappeUploadFile({ file: pdfFile, is_private: false });
+      if (selectedFile) {
+        const uploaded = await frappeUploadFile({ file: selectedFile, is_private: false });
         fileUrl = uploaded.file_url;
+        fileType = detectFileType(selectedFile);
       }
 
       if (editingName) {
         await updateMutation.mutateAsync({
           name: editingName,
-          data: { title: form.title, category: form.category, description: form.description, file_url: fileUrl, content: '' },
+          data: { title: form.title, category: form.category, description: form.description, file_url: fileUrl, file_type: fileType, content: '' },
         });
         toast.success('Actualizada', 'La plantilla se actualizo correctamente.');
       } else {
         await createMutation.mutateAsync({
           title: form.title, category: form.category, description: form.description,
-          file_url: fileUrl, content: '', status: 'Active',
+          file_url: fileUrl, file_type: fileType, content: '', status: 'Active',
         } as Partial<DocumentTemplate>);
         toast.success('Creada', 'La plantilla fue creada exitosamente.');
       }
@@ -257,22 +331,44 @@ export default function Documents() {
     }
   };
 
+  // ---- File type badge ----
+  const FileTypeBadge = ({ type }: { type: DocumentFileType }) => (
+    <span className={clsx(
+      'rounded px-1.5 py-0.5 text-[10px] font-bold uppercase',
+      type === 'pdf' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'
+    )}>
+      {type}
+    </span>
+  );
+
   // ---- Table columns ----
   const columns: Column<DocumentTemplate>[] = [
     {
       key: 'title',
       header: 'Titulo',
-      render: (t) => (
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-red-50">
-            <File className="h-5 w-5 text-red-500" />
+      render: (t) => {
+        const ft = getTemplateFileType(t);
+        return (
+          <div className="flex items-center gap-3">
+            <div className={clsx(
+              'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg',
+              ft === 'pdf' ? 'bg-red-50' : 'bg-blue-50'
+            )}>
+              {ft === 'pdf'
+                ? <File className="h-5 w-5 text-red-500" />
+                : <FileType className="h-5 w-5 text-blue-500" />
+              }
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <p className="font-medium text-gray-900">{t.title}</p>
+                <FileTypeBadge type={ft} />
+              </div>
+              {t.description && <p className="text-xs text-gray-500 truncate max-w-xs">{t.description}</p>}
+            </div>
           </div>
-          <div>
-            <p className="font-medium text-gray-900">{t.title}</p>
-            {t.description && <p className="text-xs text-gray-500 truncate max-w-xs">{t.description}</p>}
-          </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       key: 'category',
@@ -307,7 +403,7 @@ export default function Documents() {
           <button
             onClick={(e) => { e.stopPropagation(); setPreviewTemplate(t); }}
             className="rounded p-1 text-gray-400 hover:bg-blue-50 hover:text-blue-600"
-            title="Ver PDF"
+            title="Ver archivo"
           >
             <Eye className="h-4 w-4" />
           </button>
@@ -324,7 +420,7 @@ export default function Documents() {
             <button
               onClick={(e) => { e.stopPropagation(); openEdit(t); }}
               className="rounded p-1 text-gray-400 hover:bg-amber-50 hover:text-amber-600"
-              title="Editar / Reemplazar PDF"
+              title="Editar / Reemplazar archivo"
             >
               <Edit className="h-4 w-4" />
             </button>
@@ -351,7 +447,7 @@ export default function Documents() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Documentos</h1>
-          <p className="mt-1 text-gray-500">Plantillas PDF con llenado automatico de datos del empleado</p>
+          <p className="mt-1 text-gray-500">Plantillas PDF y Word con llenado automatico de datos del empleado</p>
         </div>
         <RoleGuard section="documents" action="create">
           <button onClick={openCreate} className="btn-primary">
@@ -376,13 +472,14 @@ export default function Documents() {
           <div className="text-sm text-blue-700">
             <p className="font-medium">Plantillas con llenado automatico</p>
             <p className="mt-1">
-              Sube un PDF con campos de formulario (AcroForm). Al generar el documento para un empleado,
-              los campos se llenan automaticamente con sus datos. Los nombres de campo soportados son:
+              <strong>PDF:</strong> Usa campos de formulario (AcroForm) con los nombres listados abajo.
+              <br />
+              <strong>Word (.docx):</strong> Usa placeholders con doble llave, ej: <code className="rounded bg-blue-100 px-1 text-[11px]">{'{{nombre_empleado}}'}</code> directamente en el texto del documento.
             </p>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {FIELD_MAP.map((f) => (
-                <code key={f.pdfField} className="rounded bg-blue-100 px-1.5 py-0.5 text-[11px] font-mono text-blue-800">
-                  {f.pdfField}
+                <code key={f.field} className="rounded bg-blue-100 px-1.5 py-0.5 text-[11px] font-mono text-blue-800">
+                  {f.field}
                 </code>
               ))}
             </div>
@@ -435,20 +532,43 @@ export default function Documents() {
             </div>
           </div>
 
-          {/* PDF Upload */}
+          {/* File Upload */}
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Archivo PDF *</label>
-            <input ref={fileInputRef} type="file" accept="application/pdf" className="hidden" onChange={handleFileSelect} />
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">Archivo (PDF o Word) *</label>
+            <input ref={fileInputRef} type="file" accept={ACCEPTED_FILE_TYPES} className="hidden" onChange={handleFileSelect} />
 
-            {pdfPreviewUrl ? (
+            {(filePreviewUrl || selectedFile || editingFileUrl) ? (
               <div className="space-y-3">
-                <div className="overflow-hidden rounded-lg border border-gray-200">
-                  <iframe src={pdfPreviewUrl} className="h-[400px] w-full" title="Vista previa del PDF" />
-                </div>
+                {/* PDF preview */}
+                {filePreviewUrl && editingFileType === 'pdf' && (
+                  <div className="overflow-hidden rounded-lg border border-gray-200">
+                    <iframe src={filePreviewUrl} className="h-[400px] w-full" title="Vista previa del PDF" />
+                  </div>
+                )}
+
+                {/* DOCX info (no browser preview) */}
+                {editingFileType === 'docx' && (
+                  <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-blue-300 bg-blue-50/50 py-10">
+                    <FileType className="h-12 w-12 text-blue-400" />
+                    <p className="mt-3 text-sm font-medium text-blue-700">Documento Word cargado</p>
+                    <p className="mt-1 text-xs text-blue-500">
+                      Los archivos Word no se pueden previsualizar en el navegador.
+                      <br />
+                      Usa placeholders <code className="rounded bg-blue-100 px-1">{'{{campo}}'}</code> en tu documento.
+                    </p>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <File className="h-4 w-4 text-red-500" />
-                    {pdfFile ? <span>{pdfFile.name} ({(pdfFile.size / 1024).toFixed(0)} KB)</span> : <span>PDF actual</span>}
+                    {editingFileType === 'pdf'
+                      ? <File className="h-4 w-4 text-red-500" />
+                      : <FileType className="h-4 w-4 text-blue-500" />
+                    }
+                    {selectedFile
+                      ? <span>{selectedFile.name} ({(selectedFile.size / 1024).toFixed(0)} KB)</span>
+                      : <span>Archivo actual ({editingFileType.toUpperCase()})</span>
+                    }
                   </div>
                   <button type="button" onClick={() => fileInputRef.current?.click()} className="text-sm text-primary-600 hover:text-primary-700">
                     Reemplazar archivo
@@ -465,8 +585,8 @@ export default function Documents() {
                   <Upload className="h-6 w-6 text-primary-600" />
                 </div>
                 <div className="text-center">
-                  <p className="text-sm font-medium text-gray-700">Haz clic para subir un PDF</p>
-                  <p className="mt-1 text-xs text-gray-500">PDF hasta 10 MB — usa campos de formulario para llenado automatico</p>
+                  <p className="text-sm font-medium text-gray-700">Haz clic para subir un archivo</p>
+                  <p className="mt-1 text-xs text-gray-500">PDF o Word (.docx) hasta 10 MB</p>
                 </div>
               </button>
             )}
@@ -474,7 +594,7 @@ export default function Documents() {
         </div>
       </Modal>
 
-      {/* ====== PDF PREVIEW MODAL ====== */}
+      {/* ====== FILE PREVIEW MODAL ====== */}
       <Modal
         isOpen={!!previewTemplate}
         onClose={() => setPreviewTemplate(null)}
@@ -484,15 +604,13 @@ export default function Documents() {
           <>
             <button onClick={() => setPreviewTemplate(null)} className="btn-secondary">Cerrar</button>
             {previewTemplate?.file_url && (
-              <>
-                <button
-                  onClick={() => { setPreviewTemplate(null); if (previewTemplate) setGenerateTemplate(previewTemplate); }}
-                  className="btn-primary"
-                >
-                  <Printer className="h-4 w-4" />
-                  Generar para empleado
-                </button>
-              </>
+              <button
+                onClick={() => { setPreviewTemplate(null); if (previewTemplate) setGenerateTemplate(previewTemplate); }}
+                className="btn-primary"
+              >
+                <Printer className="h-4 w-4" />
+                Generar para empleado
+              </button>
             )}
           </>
         }
@@ -500,11 +618,20 @@ export default function Documents() {
         {previewTemplate && (
           <div className="space-y-4">
             <div className="flex items-center gap-3 rounded-lg bg-gray-50 p-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-50">
-                <File className="h-5 w-5 text-red-500" />
+              <div className={clsx(
+                'flex h-10 w-10 items-center justify-center rounded-lg',
+                getTemplateFileType(previewTemplate) === 'pdf' ? 'bg-red-50' : 'bg-blue-50'
+              )}>
+                {getTemplateFileType(previewTemplate) === 'pdf'
+                  ? <File className="h-5 w-5 text-red-500" />
+                  : <FileType className="h-5 w-5 text-blue-500" />
+                }
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-900">{previewTemplate.title}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium text-gray-900">{previewTemplate.title}</p>
+                  <FileTypeBadge type={getTemplateFileType(previewTemplate)} />
+                </div>
                 <div className="flex items-center gap-2 mt-0.5">
                   <span className={clsx('rounded-full px-2 py-0.5 text-[10px] font-medium', CATEGORY_COLORS[previewTemplate.category] || CATEGORY_COLORS['Otro'])}>
                     {previewTemplate.category}
@@ -515,13 +642,29 @@ export default function Documents() {
             </div>
 
             {previewTemplate.file_url ? (
-              <div className="overflow-hidden rounded-lg border border-gray-200">
-                <iframe src={previewTemplate.file_url} className="h-[70vh] w-full" title={previewTemplate.title} />
-              </div>
+              getTemplateFileType(previewTemplate) === 'pdf' ? (
+                <div className="overflow-hidden rounded-lg border border-gray-200">
+                  <iframe src={previewTemplate.file_url} className="h-[70vh] w-full" title={previewTemplate.title} />
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-blue-300 bg-blue-50/30 py-16">
+                  <FileType className="h-16 w-16 text-blue-300" />
+                  <p className="mt-4 text-sm font-medium text-gray-700">Documento Word</p>
+                  <p className="mt-1 text-xs text-gray-500">No se puede previsualizar en el navegador. Usa &quot;Generar para empleado&quot; para descargarlo con datos.</p>
+                  <a
+                    href={previewTemplate.file_url}
+                    download
+                    className="mt-4 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                  >
+                    <Download className="h-4 w-4" />
+                    Descargar plantilla original
+                  </a>
+                </div>
+              )
             ) : (
               <div className="flex flex-col items-center justify-center py-16 text-center">
                 <FileText className="h-12 w-12 text-gray-300" />
-                <p className="mt-3 text-sm text-gray-500">Esta plantilla no tiene un PDF asociado.</p>
+                <p className="mt-3 text-sm text-gray-500">Esta plantilla no tiene un archivo asociado.</p>
               </div>
             )}
           </div>
@@ -534,6 +677,7 @@ export default function Documents() {
           isOpen={!!generateTemplate}
           onClose={() => setGenerateTemplate(null)}
           template={generateTemplate}
+          fileType={getTemplateFileType(generateTemplate)}
         />
       )}
 
@@ -560,10 +704,12 @@ function GenerateDocumentModal({
   isOpen,
   onClose,
   template,
+  fileType,
 }: {
   isOpen: boolean;
   onClose: () => void;
   template: DocumentTemplate;
+  fileType: DocumentFileType;
 }) {
   const { data: employeesData, isLoading: loadingEmployees } = useEmployees({ status: 'Active' }, 500);
   const employees = employeesData ?? [];
@@ -572,6 +718,7 @@ function GenerateDocumentModal({
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedPdfUrl, setGeneratedPdfUrl] = useState<string | null>(null);
+  const [generatedDocxBlob, setGeneratedDocxBlob] = useState<Blob | null>(null);
 
   const filtered = search.trim()
     ? employees.filter((e) =>
@@ -585,12 +732,14 @@ function GenerateDocumentModal({
     setSelectedEmployee(emp);
     setSearch(emp.employee_name);
     setGeneratedPdfUrl(null);
+    setGeneratedDocxBlob(null);
   };
 
   const handleClearEmployee = () => {
     setSelectedEmployee(null);
     setSearch('');
     setGeneratedPdfUrl(null);
+    setGeneratedDocxBlob(null);
   };
 
   const handleGenerate = async () => {
@@ -599,36 +748,53 @@ function GenerateDocumentModal({
     try {
       setIsGenerating(true);
 
-      const filledPdfBytes = await fillPdfWithEmployeeData(template.file_url, selectedEmployee);
-      const blob = new Blob([filledPdfBytes as unknown as BlobPart], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      setGeneratedPdfUrl(url);
+      if (fileType === 'pdf') {
+        const filledPdfBytes = await fillPdfWithEmployeeData(template.file_url, selectedEmployee);
+        const blob = new Blob([filledPdfBytes as unknown as BlobPart], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        setGeneratedPdfUrl(url);
+      } else {
+        const blob = await fillDocxWithEmployeeData(template.file_url, selectedEmployee);
+        setGeneratedDocxBlob(blob);
+      }
 
-      toast.success('Documento generado', 'El PDF fue llenado con los datos del empleado.');
+      toast.success('Documento generado', `El ${fileType.toUpperCase()} fue llenado con los datos del empleado.`);
     } catch (err) {
-      console.error('[Documents] Error al generar PDF:', err);
-      toast.error('Error al generar', 'No se pudo procesar el PDF. Verifica que el archivo tenga campos de formulario validos.');
+      console.error('[Documents] Error al generar documento:', err);
+      const hint = fileType === 'pdf'
+        ? 'Verifica que el PDF tenga campos de formulario (AcroForm) validos.'
+        : 'Verifica que el Word tenga placeholders con formato {{campo}}.';
+      toast.error('Error al generar', `No se pudo procesar el archivo. ${hint}`);
     } finally {
       setIsGenerating(false);
     }
   };
 
   const handleDownload = () => {
-    if (!generatedPdfUrl || !selectedEmployee) return;
-    const link = document.createElement('a');
-    link.href = generatedPdfUrl;
-    link.download = `${template.title} - ${selectedEmployee.employee_name}.pdf`;
-    link.click();
+    if (!selectedEmployee) return;
+    const baseName = `${template.title} - ${selectedEmployee.employee_name}`;
+
+    if (fileType === 'pdf' && generatedPdfUrl) {
+      const link = document.createElement('a');
+      link.href = generatedPdfUrl;
+      link.download = `${baseName}.pdf`;
+      link.click();
+    } else if (fileType === 'docx' && generatedDocxBlob) {
+      saveAs(generatedDocxBlob, `${baseName}.docx`);
+    }
   };
 
   const handleDownloadOriginal = () => {
     if (!template.file_url) return;
+    const ext = fileType === 'pdf' ? '.pdf' : '.docx';
     const link = document.createElement('a');
     link.href = template.file_url;
-    link.download = `${template.title}.pdf`;
+    link.download = `${template.title}${ext}`;
     link.target = '_blank';
     link.click();
   };
+
+  const hasGenerated = generatedPdfUrl || generatedDocxBlob;
 
   return (
     <Modal
@@ -643,12 +809,12 @@ function GenerateDocumentModal({
             <Download className="h-4 w-4" />
             Descargar original
           </button>
-          {selectedEmployee && !generatedPdfUrl && (
+          {selectedEmployee && !hasGenerated && (
             <button onClick={handleGenerate} disabled={isGenerating} className="btn-primary">
-              {isGenerating ? 'Generando...' : 'Generar PDF'}
+              {isGenerating ? 'Generando...' : `Generar ${fileType.toUpperCase()}`}
             </button>
           )}
-          {generatedPdfUrl && (
+          {hasGenerated && (
             <button onClick={handleDownload} className="btn-primary">
               <Download className="h-4 w-4" />
               Descargar con datos
@@ -723,15 +889,17 @@ function GenerateDocumentModal({
           <div>
             <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-gray-700">
               <FileText className="h-4 w-4" />
-              2. Datos que se llenaran en el PDF
+              2. Datos que se llenaran en el {fileType.toUpperCase()}
             </label>
             <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {FIELD_MAP.map((f) => {
                   const value = f.getValue(selectedEmployee);
                   return (
-                    <div key={f.pdfField} className="flex items-center gap-2 text-sm">
-                      <code className="flex-shrink-0 rounded bg-gray-200 px-1.5 py-0.5 text-[11px] font-mono text-gray-600">{f.pdfField}</code>
+                    <div key={f.field} className="flex items-center gap-2 text-sm">
+                      <code className="flex-shrink-0 rounded bg-gray-200 px-1.5 py-0.5 text-[11px] font-mono text-gray-600">
+                        {fileType === 'docx' ? `{{${f.field}}}` : f.field}
+                      </code>
                       <span className="text-gray-400">=</span>
                       <span className={clsx('truncate', value ? 'text-gray-900' : 'text-gray-400 italic')}>
                         {value || 'sin dato'}
@@ -741,14 +909,16 @@ function GenerateDocumentModal({
                 })}
               </div>
               <p className="mt-3 text-[11px] text-gray-500">
-                Solo se llenan los campos que existan en el formulario del PDF con estos nombres exactos.
+                {fileType === 'pdf'
+                  ? 'Solo se llenan los campos AcroForm que existan en el PDF con estos nombres exactos.'
+                  : 'Solo se reemplazan los placeholders {{campo}} que existan en el texto del documento Word.'}
               </p>
             </div>
           </div>
         )}
 
-        {/* Step 3: Generated PDF preview */}
-        {generatedPdfUrl && (
+        {/* Step 3: Generated preview */}
+        {generatedPdfUrl && fileType === 'pdf' && (
           <div>
             <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-gray-700">
               <Eye className="h-4 w-4" />
@@ -760,8 +930,29 @@ function GenerateDocumentModal({
           </div>
         )}
 
+        {generatedDocxBlob && fileType === 'docx' && (
+          <div>
+            <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-gray-700">
+              <CheckCircle className="h-4 w-4 text-green-500" />
+              3. Documento Word generado
+            </label>
+            <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-green-300 bg-green-50/50 py-10">
+              <FileType className="h-12 w-12 text-green-400" />
+              <p className="mt-3 text-sm font-medium text-green-700">Documento listo para descargar</p>
+              <p className="mt-1 text-xs text-green-600">
+                El archivo Word fue generado con los datos de {selectedEmployee?.employee_name}.
+                Descargalo y editalo si necesitas ajustar algo.
+              </p>
+              <button onClick={handleDownload} className="mt-4 inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700">
+                <Download className="h-4 w-4" />
+                Descargar Word
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Show original template if no employee selected yet */}
-        {!selectedEmployee && template.file_url && (
+        {!selectedEmployee && template.file_url && fileType === 'pdf' && (
           <div>
             <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-gray-700">
               <Eye className="h-4 w-4" />
@@ -770,6 +961,14 @@ function GenerateDocumentModal({
             <div className="overflow-hidden rounded-lg border border-gray-200">
               <iframe src={template.file_url} className="h-[50vh] w-full" title="Plantilla" />
             </div>
+          </div>
+        )}
+
+        {!selectedEmployee && template.file_url && fileType === 'docx' && (
+          <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-blue-300 bg-blue-50/30 py-10">
+            <FileType className="h-12 w-12 text-blue-300" />
+            <p className="mt-3 text-sm font-medium text-gray-600">Plantilla Word</p>
+            <p className="mt-1 text-xs text-gray-500">Selecciona un empleado arriba para generar el documento con sus datos.</p>
           </div>
         )}
       </div>

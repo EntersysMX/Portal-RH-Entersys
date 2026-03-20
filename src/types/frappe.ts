@@ -340,12 +340,15 @@ export interface OnboardingItem {
 // ============================================
 export type DocumentCategory = 'Contrato' | 'Carta de Recomendacion' | 'Constancia' | 'Acta' | 'Memorandum' | 'Otro';
 
+export type DocumentFileType = 'pdf' | 'docx';
+
 export interface DocumentTemplate {
   name: string;
   title: string;
   category: DocumentCategory;
   content: string;           // Texto con {{placeholders}} (legacy, puede estar vacío)
-  file_url?: string;         // URL del PDF subido como plantilla
+  file_url?: string;         // URL del archivo subido como plantilla
+  file_type?: DocumentFileType; // Tipo de archivo: pdf o docx
   status: 'Active' | 'Inactive';
   description?: string;
   creation?: string;
