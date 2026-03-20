@@ -209,57 +209,7 @@ export default function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-        {/* Admin/HR sections (from modules) */}
-        {visibleMain.length > 0 && (
-          <>
-            {(!collapsed || mobileOpen) && (
-              <p className={clsx('mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-gray-400', collapsed && 'lg:hidden')}>
-                Administración
-              </p>
-            )}
-            <div data-tour="sidebar-admin-nav" className="space-y-0.5">
-              {visibleMain.map((item) => {
-                const tourId = item.href.replace(/\//g, '-').replace(/^-/, '');
-                const cat = item.category || 'core';
-                const colors = CATEGORY_ICON_COLORS[cat] || CATEGORY_ICON_COLORS.core;
-                const activeBg = CATEGORY_ACTIVE_BG[cat] || CATEGORY_ACTIVE_BG.core;
-                return (
-                  <NavLink
-                    key={item.href}
-                    to={item.href}
-                    end={item.end}
-                    data-tour={`nav-${tourId}`}
-                    onClick={handleNavClick}
-                    className={({ isActive }) =>
-                      clsx(
-                        'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
-                        isActive
-                          ? `${activeBg} text-gray-900`
-                          : 'text-gray-600 hover:bg-white hover:text-gray-900 hover:shadow-sm',
-                        collapsed && 'lg:justify-center'
-                      )
-                    }
-                  >
-                    {({ isActive }) => (
-                      <>
-                        <item.icon className={clsx('h-5 w-5 flex-shrink-0', isActive ? colors.active : colors.idle)} />
-                        {/* Show text on mobile always; on desktop only when not collapsed */}
-                        <span className={clsx(collapsed && 'lg:hidden')}>{item.name}</span>
-                      </>
-                    )}
-                  </NavLink>
-                );
-              })}
-            </div>
-          </>
-        )}
-
-        {/* Separator before portal */}
-        {visibleMain.length > 0 && visiblePortal.length > 0 && (
-          <div className="my-3 border-t border-gray-200" />
-        )}
-
-        {/* Portal de empleado */}
+        {/* ===== 1. Portal Empleado (todos los roles lo ven — va arriba) ===== */}
         {visiblePortal.length > 0 && (
           <>
             {(!collapsed || mobileOpen) && (
@@ -302,12 +252,61 @@ export default function Sidebar() {
           </>
         )}
 
+        {/* Separator between portal and HR modules */}
+        {visiblePortal.length > 0 && visibleMain.length > 0 && (
+          <div className="my-3 border-t border-gray-200" />
+        )}
+
+        {/* ===== 2. Gestión RH (roles intermedios) ===== */}
+        {visibleMain.length > 0 && (
+          <>
+            {(!collapsed || mobileOpen) && (
+              <p className={clsx('mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-gray-400', collapsed && 'lg:hidden')}>
+                Gestión RH
+              </p>
+            )}
+            <div data-tour="sidebar-admin-nav" className="space-y-0.5">
+              {visibleMain.map((item) => {
+                const tourId = item.href.replace(/\//g, '-').replace(/^-/, '');
+                const cat = item.category || 'core';
+                const colors = CATEGORY_ICON_COLORS[cat] || CATEGORY_ICON_COLORS.core;
+                const activeBg = CATEGORY_ACTIVE_BG[cat] || CATEGORY_ACTIVE_BG.core;
+                return (
+                  <NavLink
+                    key={item.href}
+                    to={item.href}
+                    end={item.end}
+                    data-tour={`nav-${tourId}`}
+                    onClick={handleNavClick}
+                    className={({ isActive }) =>
+                      clsx(
+                        'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
+                        isActive
+                          ? `${activeBg} text-gray-900`
+                          : 'text-gray-600 hover:bg-white hover:text-gray-900 hover:shadow-sm',
+                        collapsed && 'lg:justify-center'
+                      )
+                    }
+                  >
+                    {({ isActive }) => (
+                      <>
+                        <item.icon className={clsx('h-5 w-5 flex-shrink-0', isActive ? colors.active : colors.idle)} />
+                        <span className={clsx(collapsed && 'lg:hidden')}>{item.name}</span>
+                      </>
+                    )}
+                  </NavLink>
+                );
+              })}
+            </div>
+          </>
+        )}
+
         {/* Separator before admin panel */}
         {visibleAdmin.length > 0 && (visibleMain.length > 0 || visiblePortal.length > 0) && (
           <div className="my-3 border-t border-gray-200" />
         )}
 
-        {/* Admin Panel */}
+        {/* ===== 3. Panel Admin (solo admins — va al final) ===== */}
         {visibleAdmin.length > 0 && (
           <>
             {(!collapsed || mobileOpen) && (
