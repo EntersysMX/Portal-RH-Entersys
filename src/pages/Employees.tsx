@@ -51,6 +51,7 @@ export default function Employees() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const filters: Record<string, unknown> = {};
   if (statusFilter) filters.status = statusFilter;
@@ -221,9 +222,49 @@ export default function Employees() {
     });
     setPhotoFile(null);
     setPhotoPreview(null);
+    setFormErrors({});
+  };
+
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+    if (!newEmployee.first_name.trim()) errors.first_name = 'El nombre es obligatorio';
+    if (!newEmployee.last_name.trim()) errors.last_name = 'El apellido es obligatorio';
+    if (!newEmployee.company.trim()) errors.company = 'La empresa es obligatoria';
+    if (!newEmployee.date_of_joining) errors.date_of_joining = 'La fecha de ingreso es obligatoria';
+
+    // RFC validation (Mexican tax ID: 4 letters + 6 digits + 3 alphanum)
+    if (newEmployee.rfc) {
+      const rfcRegex = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/;
+      if (!rfcRegex.test(newEmployee.rfc)) {
+        errors.rfc = 'RFC inválido (ej: XXXX000000XXX)';
+      }
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (newEmployee.personal_email && !emailRegex.test(newEmployee.personal_email)) {
+      errors.personal_email = 'Email personal inválido';
+    }
+    if (newEmployee.company_email && !emailRegex.test(newEmployee.company_email)) {
+      errors.company_email = 'Email corporativo inválido';
+    }
+
+    // Phone validation (basic: at least 10 digits)
+    if (newEmployee.cell_phone) {
+      const digits = newEmployee.cell_phone.replace(/\D/g, '');
+      if (digits.length < 10) errors.cell_phone = 'El teléfono debe tener al menos 10 dígitos';
+    }
+
+    setFormErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      toast.error('Formulario incompleto', 'Revisa los campos marcados en rojo.');
+      return false;
+    }
+    return true;
   };
 
   const handleCreate = async () => {
+    if (!validateForm()) return;
     try {
       // Pre-create catalog entries that don't exist
       const promises: Promise<void>[] = [];
@@ -458,20 +499,20 @@ export default function Employees() {
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-700">Nombre *</label>
                 <input
-                  className="input"
+                  className={`input ${formErrors.first_name ? 'border-red-400 focus:border-red-500 focus:ring-red-500/20' : ''}`}
                   value={newEmployee.first_name}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, first_name: e.target.value })}
-                  required
+                  onChange={(e) => { setNewEmployee({ ...newEmployee, first_name: e.target.value }); setFormErrors((p) => ({ ...p, first_name: '' })); }}
                 />
+                {formErrors.first_name && <p className="mt-1 text-xs text-red-500">{formErrors.first_name}</p>}
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-700">Apellido *</label>
                 <input
-                  className="input"
+                  className={`input ${formErrors.last_name ? 'border-red-400 focus:border-red-500 focus:ring-red-500/20' : ''}`}
                   value={newEmployee.last_name}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, last_name: e.target.value })}
-                  required
+                  onChange={(e) => { setNewEmployee({ ...newEmployee, last_name: e.target.value }); setFormErrors((p) => ({ ...p, last_name: '' })); }}
                 />
+                {formErrors.last_name && <p className="mt-1 text-xs text-red-500">{formErrors.last_name}</p>}
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-700">Género</label>
@@ -498,13 +539,17 @@ export default function Employees() {
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-700">RFC</label>
                 <input
-                  className="input uppercase"
+                  className={`input uppercase ${formErrors.rfc ? 'border-red-400 focus:border-red-500 focus:ring-red-500/20' : ''}`}
                   placeholder="XXXX000000XXX"
                   maxLength={13}
                   value={newEmployee.rfc}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, rfc: e.target.value.toUpperCase() })}
+                  onChange={(e) => { setNewEmployee({ ...newEmployee, rfc: e.target.value.toUpperCase() }); setFormErrors((p) => ({ ...p, rfc: '' })); }}
                 />
-                <p className="mt-1 text-xs text-gray-400">Se usará como contraseña inicial de acceso</p>
+                {formErrors.rfc ? (
+                  <p className="mt-1 text-xs text-red-500">{formErrors.rfc}</p>
+                ) : (
+                  <p className="mt-1 text-xs text-gray-400">Se usará como contraseña inicial de acceso</p>
+                )}
               </div>
             </div>
           </div>
@@ -533,21 +578,23 @@ export default function Employees() {
               </div>
               <div>
                 <ComboSelect
-                  label="Empresa"
+                  label="Empresa *"
                   options={companyOptions}
                   value={newEmployee.company}
-                  onChange={(val) => setNewEmployee({ ...newEmployee, company: val })}
+                  onChange={(val) => { setNewEmployee({ ...newEmployee, company: val }); setFormErrors((p) => ({ ...p, company: '' })); }}
                   placeholder="Seleccionar o crear empresa"
                 />
+                {formErrors.company && <p className="mt-1 text-xs text-red-500">{formErrors.company}</p>}
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700">Fecha de ingreso</label>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">Fecha de ingreso *</label>
                 <input
                   type="date"
-                  className="input"
+                  className={`input ${formErrors.date_of_joining ? 'border-red-400 focus:border-red-500 focus:ring-red-500/20' : ''}`}
                   value={newEmployee.date_of_joining}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, date_of_joining: e.target.value })}
+                  onChange={(e) => { setNewEmployee({ ...newEmployee, date_of_joining: e.target.value }); setFormErrors((p) => ({ ...p, date_of_joining: '' })); }}
                 />
+                {formErrors.date_of_joining && <p className="mt-1 text-xs text-red-500">{formErrors.date_of_joining}</p>}
               </div>
             </div>
           </div>
@@ -560,31 +607,34 @@ export default function Employees() {
                 <label className="mb-1.5 block text-sm font-medium text-gray-700">Teléfono celular</label>
                 <input
                   type="tel"
-                  className="input"
+                  className={`input ${formErrors.cell_phone ? 'border-red-400 focus:border-red-500 focus:ring-red-500/20' : ''}`}
                   placeholder="+52 55 1234 5678"
                   value={newEmployee.cell_phone}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, cell_phone: e.target.value })}
+                  onChange={(e) => { setNewEmployee({ ...newEmployee, cell_phone: e.target.value }); setFormErrors((p) => ({ ...p, cell_phone: '' })); }}
                 />
+                {formErrors.cell_phone && <p className="mt-1 text-xs text-red-500">{formErrors.cell_phone}</p>}
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-700">Email personal</label>
                 <input
                   type="email"
-                  className="input"
+                  className={`input ${formErrors.personal_email ? 'border-red-400 focus:border-red-500 focus:ring-red-500/20' : ''}`}
                   placeholder="correo@personal.com"
                   value={newEmployee.personal_email}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, personal_email: e.target.value })}
+                  onChange={(e) => { setNewEmployee({ ...newEmployee, personal_email: e.target.value }); setFormErrors((p) => ({ ...p, personal_email: '' })); }}
                 />
+                {formErrors.personal_email && <p className="mt-1 text-xs text-red-500">{formErrors.personal_email}</p>}
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-700">Email corporativo</label>
                 <input
                   type="email"
-                  className="input"
+                  className={`input ${formErrors.company_email ? 'border-red-400 focus:border-red-500 focus:ring-red-500/20' : ''}`}
                   placeholder="correo@empresa.com"
                   value={newEmployee.company_email}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, company_email: e.target.value })}
+                  onChange={(e) => { setNewEmployee({ ...newEmployee, company_email: e.target.value }); setFormErrors((p) => ({ ...p, company_email: '' })); }}
                 />
+                {formErrors.company_email && <p className="mt-1 text-xs text-red-500">{formErrors.company_email}</p>}
               </div>
             </div>
           </div>

@@ -5,6 +5,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useModuleStore } from '@/store/moduleStore';
 import { usePermissions } from '@/hooks/usePermissions';
 import AppLayout from '@/components/layout/AppLayout';
+import ErrorBoundary from '@/components/ui/ErrorBoundary';
 import ToastContainer from '@/components/ui/Toast';
 import Login from '@/pages/Login';
 import Dashboard from '@/pages/Dashboard';
@@ -139,6 +140,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
+    <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <ToastContainer />
       <BrowserRouter>
@@ -153,7 +155,9 @@ export default function App() {
           <Route
             element={
               <AuthGuard>
-                <AppLayout />
+                <ErrorBoundary>
+                  <AppLayout />
+                </ErrorBoundary>
               </AuthGuard>
             }
           >
@@ -557,5 +561,6 @@ export default function App() {
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>
+    </ErrorBoundary>
   );
 }

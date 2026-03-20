@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Users, Search, Shield, UserCog, Trash2 } from 'lucide-react';
 import { clsx } from 'clsx';
 import Modal from '@/components/ui/Modal';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import ErrorState from '@/components/ui/ErrorState';
 import { useModuleStore } from '@/store/moduleStore';
 import { useEmployees } from '@/hooks/useFrappe';
@@ -15,6 +16,7 @@ export default function AdminUsers() {
   const [search, setSearch] = useState('');
   const [selectedUser, setSelectedUser] = useState<Employee | null>(null);
   const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([]);
+  const [removeTarget, setRemoveTarget] = useState<(Employee & { customRoleIds: string[] }) | null>(null);
 
   // Merge employees with their assignments
   const usersWithRoles = useMemo(() => {
@@ -54,10 +56,12 @@ export default function AdminUsers() {
     toast.success('Roles asignados', `Roles actualizados para ${selectedUser.employee_name}`);
   };
 
-  const handleRemoveAssignment = async (emp: Employee & { customRoleIds: string[] }) => {
-    const email = emp.user_id || emp.name;
+  const handleConfirmRemove = async () => {
+    if (!removeTarget) return;
+    const email = removeTarget.user_id || removeTarget.name;
     await removeUserAssignment(email);
-    toast.success('Asignación removida', `${emp.employee_name} usará el perfil por defecto de Frappe`);
+    toast.success('Asignación removida', `${removeTarget.employee_name} usará el perfil por defecto de Frappe`);
+    setRemoveTarget(null);
   };
 
   const toggleRole = (roleId: string) => {
@@ -173,7 +177,7 @@ export default function AdminUsers() {
                 </button>
                 {hasCustomRoles && (
                   <button
-                    onClick={() => handleRemoveAssignment(emp)}
+                    onClick={() => setRemoveTarget(emp)}
                     className="rounded p-2 text-gray-400 hover:bg-red-50 hover:text-red-500"
                     title="Quitar roles personalizados"
                   >
@@ -242,6 +246,16 @@ export default function AdminUsers() {
           </div>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={!!removeTarget}
+        onClose={() => setRemoveTarget(null)}
+        onConfirm={handleConfirmRemove}
+        title="Quitar roles personalizados"
+        message={`¿Quitar los roles personalizados de ${removeTarget?.employee_name ?? ''}? Usará el perfil por defecto de Frappe.`}
+        confirmLabel="Quitar roles"
+        variant="warning"
+      />
 
       {/* Info */}
       <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">

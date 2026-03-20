@@ -4,6 +4,7 @@ import { clsx } from 'clsx';
 import StatsCard from '@/components/ui/StatsCard';
 import DataTable, { Column } from '@/components/ui/DataTable';
 import Modal from '@/components/ui/Modal';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import RoleGuard from '@/components/auth/RoleGuard';
 import { useGrievances, useCreateGrievance, useUpdateGrievance } from '@/hooks/useFrappe';
 import { toast } from '@/components/ui/Toast';
@@ -47,6 +48,7 @@ export default function Grievances() {
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<EmployeeGrievance | null>(null);
   const [form, setForm] = useState({ ...EMPTY_FORM });
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const totalCount = grievances?.length ?? 0;
   const openCount = grievances?.filter((g) => g.status === 'Open').length ?? 0;
@@ -141,6 +143,18 @@ export default function Grievances() {
     }
   };
 
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await updateMutation.mutateAsync({ name: deleteTarget, data: { status: 'Invalid' } });
+      toast.success('Queja eliminada', 'La queja fue marcada como inválida.');
+    } catch (err) {
+      toast.fromError(err);
+    } finally {
+      setDeleteTarget(null);
+    }
+  };
+
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
   const columns: Column<EmployeeGrievance>[] = [
@@ -205,13 +219,7 @@ export default function Grievances() {
             <Edit className="h-4 w-4" />
           </button>
           <button
-            onClick={() => {
-              if (window.confirm('¿Estás seguro de eliminar esta queja?')) {
-                updateMutation.mutateAsync({ name: g.name, data: { status: 'Invalid' } })
-                  .then(() => toast.success('Queja eliminada', 'La queja fue marcada como inválida.'))
-                  .catch((err) => toast.fromError(err));
-              }
-            }}
+            onClick={() => setDeleteTarget(g.name)}
             className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
             title="Eliminar"
           >
@@ -425,6 +433,16 @@ export default function Grievances() {
           )}
         </div>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleConfirmDelete}
+        title="Eliminar queja"
+        message="¿Estás seguro de eliminar esta queja? Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        isLoading={updateMutation.isPending}
+      />
     </div>
   );
 }

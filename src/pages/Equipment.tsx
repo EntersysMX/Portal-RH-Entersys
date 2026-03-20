@@ -4,6 +4,7 @@ import { clsx } from 'clsx';
 import StatsCard from '@/components/ui/StatsCard';
 import DataTable, { Column } from '@/components/ui/DataTable';
 import Modal from '@/components/ui/Modal';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import RoleGuard from '@/components/auth/RoleGuard';
 import {
   useEquipmentAssignments,
@@ -50,6 +51,7 @@ export default function Equipment() {
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<EquipmentAssignment | null>(null);
   const [form, setForm] = useState({ ...EMPTY_FORM });
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const assigned = assignments?.filter((a) => a.status === 'Asignado').length ?? 0;
   const pendingReturn = assignments?.filter((a) => a.status === 'Asignado' && !a.return_date).length ?? 0;
@@ -118,11 +120,12 @@ export default function Equipment() {
     }
   };
 
-  const handleDelete = async (name: string) => {
-    if (!window.confirm('\u00bfEst\u00e1s seguro de eliminar esta asignaci\u00f3n? Esta acci\u00f3n no se puede deshacer.')) return;
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await deleteMutation.mutateAsync(name);
-      toast.success('Asignaci\u00f3n eliminada', 'El registro fue eliminado correctamente.');
+      await deleteMutation.mutateAsync(deleteTarget);
+      toast.success('Asignación eliminada', 'El registro fue eliminado correctamente.');
+      setDeleteTarget(null);
     } catch (err) {
       toast.fromError(err);
     }
@@ -216,7 +219,7 @@ export default function Equipment() {
           </RoleGuard>
           <RoleGuard section="equipment" action="delete">
             <button
-              onClick={() => handleDelete(item.name)}
+              onClick={() => setDeleteTarget(item.name)}
               className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
               title="Eliminar asignaci\u00f3n"
             >
@@ -376,6 +379,17 @@ export default function Equipment() {
           </div>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleConfirmDelete}
+        title="Eliminar asignación"
+        message="¿Estás seguro de eliminar esta asignación de equipo? Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        isLoading={deleteMutation.isPending}
+        variant="danger"
+      />
     </div>
   );
 }

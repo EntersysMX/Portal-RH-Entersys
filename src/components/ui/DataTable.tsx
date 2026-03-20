@@ -1,5 +1,7 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Inbox } from 'lucide-react';
 import ErrorState from '@/components/ui/ErrorState';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { clsx } from 'clsx';
 
 export interface Column<T> {
   key: string;
@@ -20,6 +22,7 @@ interface DataTableProps<T> {
   total?: number;
   onPageChange?: (page: number) => void;
   emptyMessage?: string;
+  emptyAction?: { label: string; onClick: () => void };
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -35,15 +38,35 @@ export default function DataTable<T extends Record<string, any>>({
   total,
   onPageChange,
   emptyMessage = 'No se encontraron registros',
+  emptyAction,
 }: DataTableProps<T>) {
   const totalPages = total ? Math.ceil(total / pageSize) : 1;
 
   if (isLoading) {
     return (
       <div className="table-container">
-        <div className="flex h-64 items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" />
-        </div>
+        <table>
+          <thead>
+            <tr>
+              {columns.map((col) => (
+                <th key={col.key} className={col.className}>
+                  <Skeleton className="h-3 w-20" />
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {Array.from({ length: 5 }).map((_, rowIdx) => (
+              <tr key={rowIdx}>
+                {columns.map((col, colIdx) => (
+                  <td key={col.key} className="px-3 py-3 lg:px-6 lg:py-4">
+                    <Skeleton className={clsx('h-4', colIdx === 0 ? 'w-32' : 'w-20')} />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     );
   }
@@ -72,8 +95,18 @@ export default function DataTable<T extends Record<string, any>>({
           <tbody className="divide-y divide-gray-100">
             {data.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="py-12 text-center text-gray-400">
-                  {emptyMessage}
+                <td colSpan={columns.length} className="py-12">
+                  <div className="flex flex-col items-center justify-center text-center">
+                    <div className="rounded-full bg-gray-100 p-3">
+                      <Inbox className="h-6 w-6 text-gray-400" />
+                    </div>
+                    <p className="mt-3 text-sm text-gray-500">{emptyMessage}</p>
+                    {emptyAction && (
+                      <button onClick={emptyAction.onClick} className="btn-primary mt-4 text-sm">
+                        {emptyAction.label}
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ) : (

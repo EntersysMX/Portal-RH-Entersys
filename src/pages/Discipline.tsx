@@ -4,6 +4,7 @@ import { clsx } from 'clsx';
 import StatsCard from '@/components/ui/StatsCard';
 import DataTable, { Column } from '@/components/ui/DataTable';
 import Modal from '@/components/ui/Modal';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import RoleGuard from '@/components/auth/RoleGuard';
 import {
   useDisciplinaryActions,
@@ -51,6 +52,7 @@ export default function Discipline() {
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<DisciplinaryAction | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const activeCount = actions?.filter((a) => a.status === 'Active').length ?? 0;
   const catCount: Record<string, number> = {};
@@ -111,13 +113,15 @@ export default function Discipline() {
     }
   };
 
-  const handleDelete = async (name: string) => {
-    if (!window.confirm('¿Estás seguro de eliminar esta acción disciplinaria? Esta acción no se puede deshacer.')) return;
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await deleteMutation.mutateAsync(name);
+      await deleteMutation.mutateAsync(deleteTarget);
       toast.success('Acta eliminada', 'La acción disciplinaria fue eliminada.');
     } catch (err) {
       toast.fromError(err);
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -178,7 +182,7 @@ export default function Discipline() {
             <Edit className="h-4 w-4" />
           </button>
           <button
-            onClick={() => handleDelete(item.name)}
+            onClick={() => setDeleteTarget(item.name)}
             className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
             title="Eliminar"
           >
@@ -285,6 +289,16 @@ export default function Discipline() {
           </div>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleConfirmDelete}
+        title="Eliminar registro disciplinario"
+        message="¿Estás seguro de eliminar este registro disciplinario? Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        isLoading={deleteMutation.isPending}
+      />
     </div>
   );
 }

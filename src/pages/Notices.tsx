@@ -4,6 +4,7 @@ import { clsx } from 'clsx';
 import StatsCard from '@/components/ui/StatsCard';
 import DataTable, { Column } from '@/components/ui/DataTable';
 import Modal from '@/components/ui/Modal';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import RoleGuard from '@/components/auth/RoleGuard';
 import { useNotices, useCreateNotice, useUpdateNotice, useDeleteNotice } from '@/hooks/useFrappe';
 import { toast } from '@/components/ui/Toast';
@@ -43,6 +44,7 @@ export default function Notices() {
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<Notice | null>(null);
   const [formData, setFormData] = useState(EMPTY_FORM);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const activeNotices = notices?.filter((n) => n.status === 'Active') || [];
   const urgentCount = activeNotices.filter((n) => n.type === 'urgent').length;
@@ -104,11 +106,12 @@ export default function Notices() {
     }
   };
 
-  const handleDelete = async (name: string) => {
-    if (!window.confirm('¿Estás seguro de que deseas eliminar este aviso? Esta acción no se puede deshacer.')) return;
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await deleteMutation.mutateAsync(name);
+      await deleteMutation.mutateAsync(deleteTarget);
       toast.success('Aviso eliminado', 'El aviso se eliminó correctamente.');
+      setDeleteTarget(null);
     } catch (err) {
       toast.fromError(err);
     }
@@ -187,7 +190,7 @@ export default function Notices() {
           </button>
           <button
             title="Eliminar"
-            onClick={() => handleDelete(item.name)}
+            onClick={() => setDeleteTarget(item.name)}
             className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
           >
             <Trash2 className="h-4 w-4" />
@@ -310,6 +313,17 @@ export default function Notices() {
           </div>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleConfirmDelete}
+        title="Eliminar aviso"
+        message="¿Estás seguro de que deseas eliminar este aviso? Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        isLoading={deleteMutation.isPending}
+        variant="danger"
+      />
     </div>
   );
 }
