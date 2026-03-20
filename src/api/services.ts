@@ -37,6 +37,18 @@ import type {
   DisciplinaryAction,
   EquipmentAssignment,
   OnboardingChecklist,
+  Loan,
+  TravelRequest,
+  EmployeePromotion,
+  EmployeeTransfer,
+  EmployeeSeparation,
+  ShiftType,
+  ShiftAssignment,
+  EmployeeCheckin,
+  EmployeeGrievance,
+  EmployeeSkillMap,
+  SavingsFundEntry,
+  BenefitEntry,
 } from '@/types/frappe';
 
 // ============================================
@@ -772,6 +784,213 @@ export const analyticsService = {
       filters: { status: 'Submitted', ...filters },
       limit_page_length: 0,
     }),
+};
+
+// ============================================
+// LOAN SERVICE (Préstamos - Frappe HR)
+// ============================================
+export const loanService = {
+  list: (params?: { filters?: Record<string, unknown>; limit?: number }) =>
+    frappeGetList<Loan>({
+      doctype: 'Loan',
+      fields: ['*'],
+      filters: params?.filters,
+      limit_page_length: params?.limit || 50,
+      order_by: 'posting_date desc',
+    }).catch(() => []),
+
+  get: (name: string) => frappeGetDoc<Loan>('Loan', name),
+
+  create: (data: Partial<Loan>) => frappeCreateDoc<Loan>('Loan', data),
+
+  update: (name: string, data: Partial<Loan>) =>
+    frappeUpdateDoc<Loan>('Loan', name, data),
+
+  delete: (name: string) => frappeDeleteDoc('Loan', name),
+};
+
+// ============================================
+// SAVINGS FUND SERVICE (Fondo de Ahorro - Custom Note-based)
+// ============================================
+const _savingsStore = noteStore<SavingsFundEntry>('enterhr_savings_fund', 'SAV');
+
+export const savingsFundService = {
+  list: _savingsStore.list,
+  get: _savingsStore.get,
+  create: _savingsStore.create,
+  update: (name: string, data: Partial<SavingsFundEntry>) => _savingsStore.update(name, data),
+  delete: _savingsStore.delete,
+};
+
+// ============================================
+// TRAVEL REQUEST SERVICE (Viáticos - Frappe HR)
+// ============================================
+export const travelService = {
+  list: (params?: { filters?: Record<string, unknown>; limit?: number }) =>
+    frappeGetList<TravelRequest>({
+      doctype: 'Travel Request',
+      fields: ['*'],
+      filters: params?.filters,
+      limit_page_length: params?.limit || 50,
+      order_by: 'creation desc',
+    }).catch(() => []),
+
+  get: (name: string) => frappeGetDoc<TravelRequest>('Travel Request', name),
+
+  create: (data: Partial<TravelRequest>) => frappeCreateDoc<TravelRequest>('Travel Request', data),
+
+  update: (name: string, data: Partial<TravelRequest>) =>
+    frappeUpdateDoc<TravelRequest>('Travel Request', name, data),
+
+  delete: (name: string) => frappeDeleteDoc('Travel Request', name),
+};
+
+// ============================================
+// BENEFITS SERVICE (Prestaciones - Custom Note-based)
+// ============================================
+const _benefitsStore = noteStore<BenefitEntry>('enterhr_benefits', 'BEN');
+
+export const benefitsService = {
+  list: _benefitsStore.list,
+  get: _benefitsStore.get,
+  create: _benefitsStore.create,
+  update: (name: string, data: Partial<BenefitEntry>) => _benefitsStore.update(name, data),
+  delete: _benefitsStore.delete,
+};
+
+// ============================================
+// MOVEMENTS SERVICE (Promociones + Transferencias - Frappe HR)
+// ============================================
+export const movementsService = {
+  listPromotions: (params?: { filters?: Record<string, unknown>; limit?: number }) =>
+    frappeGetList<EmployeePromotion>({
+      doctype: 'Employee Promotion',
+      fields: ['*'],
+      filters: params?.filters,
+      limit_page_length: params?.limit || 50,
+      order_by: 'promotion_date desc',
+    }).catch(() => []),
+
+  createPromotion: (data: Partial<EmployeePromotion>) =>
+    frappeCreateDoc<EmployeePromotion>('Employee Promotion', data),
+
+  listTransfers: (params?: { filters?: Record<string, unknown>; limit?: number }) =>
+    frappeGetList<EmployeeTransfer>({
+      doctype: 'Employee Transfer',
+      fields: ['*'],
+      filters: params?.filters,
+      limit_page_length: params?.limit || 50,
+      order_by: 'transfer_date desc',
+    }).catch(() => []),
+
+  createTransfer: (data: Partial<EmployeeTransfer>) =>
+    frappeCreateDoc<EmployeeTransfer>('Employee Transfer', data),
+};
+
+// ============================================
+// SEPARATION SERVICE (Separaciones - Frappe HR)
+// ============================================
+export const separationService = {
+  list: (params?: { filters?: Record<string, unknown>; limit?: number }) =>
+    frappeGetList<EmployeeSeparation>({
+      doctype: 'Employee Separation',
+      fields: ['*'],
+      filters: params?.filters,
+      limit_page_length: params?.limit || 50,
+      order_by: 'creation desc',
+    }).catch(() => []),
+
+  get: (name: string) => frappeGetDoc<EmployeeSeparation>('Employee Separation', name),
+
+  create: (data: Partial<EmployeeSeparation>) =>
+    frappeCreateDoc<EmployeeSeparation>('Employee Separation', data),
+
+  update: (name: string, data: Partial<EmployeeSeparation>) =>
+    frappeUpdateDoc<EmployeeSeparation>('Employee Separation', name, data),
+};
+
+// ============================================
+// SHIFT SERVICE (Turnos - Frappe HR)
+// ============================================
+export const shiftService = {
+  listTypes: () =>
+    frappeGetList<ShiftType>({
+      doctype: 'Shift Type',
+      fields: ['*'],
+      limit_page_length: 50,
+    }).catch(() => []),
+
+  listAssignments: (params?: { filters?: Record<string, unknown>; limit?: number }) =>
+    frappeGetList<ShiftAssignment>({
+      doctype: 'Shift Assignment',
+      fields: ['*'],
+      filters: params?.filters,
+      limit_page_length: params?.limit || 50,
+      order_by: 'start_date desc',
+    }).catch(() => []),
+
+  createAssignment: (data: Partial<ShiftAssignment>) =>
+    frappeCreateDoc<ShiftAssignment>('Shift Assignment', data),
+
+  deleteAssignment: (name: string) => frappeDeleteDoc('Shift Assignment', name),
+};
+
+// ============================================
+// CHECKIN SERVICE (Checadas - Frappe HR)
+// ============================================
+export const checkinService = {
+  list: (params?: { filters?: Record<string, unknown>; limit?: number }) =>
+    frappeGetList<EmployeeCheckin>({
+      doctype: 'Employee Checkin',
+      fields: ['*'],
+      filters: params?.filters,
+      limit_page_length: params?.limit || 100,
+      order_by: 'time desc',
+    }).catch(() => []),
+};
+
+// ============================================
+// GRIEVANCE SERVICE (Quejas - Frappe HR)
+// ============================================
+export const grievanceService = {
+  list: (params?: { filters?: Record<string, unknown>; limit?: number }) =>
+    frappeGetList<EmployeeGrievance>({
+      doctype: 'Employee Grievance',
+      fields: ['*'],
+      filters: params?.filters,
+      limit_page_length: params?.limit || 50,
+      order_by: 'date desc',
+    }).catch(() => []),
+
+  get: (name: string) => frappeGetDoc<EmployeeGrievance>('Employee Grievance', name),
+
+  create: (data: Partial<EmployeeGrievance>) =>
+    frappeCreateDoc<EmployeeGrievance>('Employee Grievance', data),
+
+  update: (name: string, data: Partial<EmployeeGrievance>) =>
+    frappeUpdateDoc<EmployeeGrievance>('Employee Grievance', name, data),
+};
+
+// ============================================
+// SKILL MAP SERVICE (Habilidades - Frappe HR)
+// ============================================
+export const skillMapService = {
+  list: (params?: { filters?: Record<string, unknown>; limit?: number }) =>
+    frappeGetList<EmployeeSkillMap>({
+      doctype: 'Employee Skill Map',
+      fields: ['*'],
+      filters: params?.filters,
+      limit_page_length: params?.limit || 50,
+      order_by: 'creation desc',
+    }).catch(() => []),
+
+  get: (name: string) => frappeGetDoc<EmployeeSkillMap>('Employee Skill Map', name),
+
+  create: (data: Partial<EmployeeSkillMap>) =>
+    frappeCreateDoc<EmployeeSkillMap>('Employee Skill Map', data),
+
+  update: (name: string, data: Partial<EmployeeSkillMap>) =>
+    frappeUpdateDoc<EmployeeSkillMap>('Employee Skill Map', name, data),
 };
 
 // ============================================

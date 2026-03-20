@@ -27,6 +27,16 @@ import {
   equipmentService,
   onboardingService,
   analyticsService,
+  loanService,
+  savingsFundService,
+  travelService,
+  benefitsService,
+  movementsService,
+  separationService,
+  shiftService,
+  checkinService,
+  grievanceService,
+  skillMapService,
 } from '@/api/services';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from '@/components/ui/Toast';
@@ -895,4 +905,142 @@ export function useAllSalarySlipsAnalytics(filters?: Record<string, unknown>) {
     queryFn: () => analyticsService.allSalarySlips(filters),
     staleTime: 120_000,
   });
+}
+
+// ============================================
+// LOANS (Préstamos)
+// ============================================
+export function useLoans(filters?: Record<string, unknown>) {
+  return useQuery({ queryKey: ['loans', filters], queryFn: () => loanService.list({ filters }), staleTime: 30_000 });
+}
+
+export function useCreateLoan() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: loanService.create, onSuccess: () => qc.invalidateQueries({ queryKey: ['loans'] }), onError: (error) => toast.fromError(error) });
+}
+
+// ============================================
+// SAVINGS FUND (Fondo de Ahorro)
+// ============================================
+export function useSavingsFund(filters?: Record<string, unknown>) {
+  return useQuery({ queryKey: ['savings-fund', filters], queryFn: () => savingsFundService.list({ filters }), staleTime: 30_000 });
+}
+
+export function useCreateSavingsFundEntry() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: savingsFundService.create, onSuccess: () => qc.invalidateQueries({ queryKey: ['savings-fund'] }), onError: (error) => toast.fromError(error) });
+}
+
+export function useDeleteSavingsFundEntry() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: savingsFundService.delete, onSuccess: () => qc.invalidateQueries({ queryKey: ['savings-fund'] }), onError: (error) => toast.fromError(error) });
+}
+
+// ============================================
+// TRAVEL REQUESTS (Viáticos)
+// ============================================
+export function useTravelRequests(filters?: Record<string, unknown>) {
+  return useQuery({ queryKey: ['travel-requests', filters], queryFn: () => travelService.list({ filters }), staleTime: 30_000 });
+}
+
+export function useCreateTravelRequest() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: travelService.create, onSuccess: () => qc.invalidateQueries({ queryKey: ['travel-requests'] }), onError: (error) => toast.fromError(error) });
+}
+
+// ============================================
+// BENEFITS (Prestaciones)
+// ============================================
+export function useBenefitEntries(filters?: Record<string, unknown>) {
+  return useQuery({ queryKey: ['benefit-entries', filters], queryFn: () => benefitsService.list({ filters }), staleTime: 30_000 });
+}
+
+export function useCreateBenefitEntry() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: benefitsService.create, onSuccess: () => qc.invalidateQueries({ queryKey: ['benefit-entries'] }), onError: (error) => toast.fromError(error) });
+}
+
+export function useDeleteBenefitEntry() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: benefitsService.delete, onSuccess: () => qc.invalidateQueries({ queryKey: ['benefit-entries'] }), onError: (error) => toast.fromError(error) });
+}
+
+// ============================================
+// MOVEMENTS (Promociones + Transferencias)
+// ============================================
+export function usePromotions(filters?: Record<string, unknown>) {
+  return useQuery({ queryKey: ['promotions', filters], queryFn: () => movementsService.listPromotions({ filters }), staleTime: 60_000 });
+}
+
+export function useTransfers(filters?: Record<string, unknown>) {
+  return useQuery({ queryKey: ['transfers', filters], queryFn: () => movementsService.listTransfers({ filters }), staleTime: 60_000 });
+}
+
+export function useCreatePromotion() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: movementsService.createPromotion, onSuccess: () => qc.invalidateQueries({ queryKey: ['promotions'] }), onError: (error) => toast.fromError(error) });
+}
+
+export function useCreateTransfer() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: movementsService.createTransfer, onSuccess: () => qc.invalidateQueries({ queryKey: ['transfers'] }), onError: (error) => toast.fromError(error) });
+}
+
+// ============================================
+// SEPARATIONS (Separaciones)
+// ============================================
+export function useSeparations(filters?: Record<string, unknown>) {
+  return useQuery({ queryKey: ['separations', filters], queryFn: () => separationService.list({ filters }), staleTime: 30_000 });
+}
+
+export function useCreateSeparation() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: separationService.create, onSuccess: () => qc.invalidateQueries({ queryKey: ['separations'] }), onError: (error) => toast.fromError(error) });
+}
+
+// ============================================
+// SHIFTS (Turnos)
+// ============================================
+export function useShiftTypes() {
+  return useQuery({ queryKey: ['shift-types'], queryFn: shiftService.listTypes, staleTime: 300_000 });
+}
+
+export function useShiftAssignments(filters?: Record<string, unknown>) {
+  return useQuery({ queryKey: ['shift-assignments', filters], queryFn: () => shiftService.listAssignments({ filters }), staleTime: 30_000 });
+}
+
+export function useCreateShiftAssignment() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: shiftService.createAssignment, onSuccess: () => qc.invalidateQueries({ queryKey: ['shift-assignments'] }), onError: (error) => toast.fromError(error) });
+}
+
+// ============================================
+// CHECKINS (Checadas)
+// ============================================
+export function useCheckins(filters?: Record<string, unknown>) {
+  return useQuery({ queryKey: ['checkins', filters], queryFn: () => checkinService.list({ filters }), staleTime: 30_000 });
+}
+
+// ============================================
+// GRIEVANCES (Quejas)
+// ============================================
+export function useGrievances(filters?: Record<string, unknown>) {
+  return useQuery({ queryKey: ['grievances', filters], queryFn: () => grievanceService.list({ filters }), staleTime: 30_000 });
+}
+
+export function useCreateGrievance() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: grievanceService.create, onSuccess: () => qc.invalidateQueries({ queryKey: ['grievances'] }), onError: (error) => toast.fromError(error) });
+}
+
+// ============================================
+// SKILL MAPS (Habilidades)
+// ============================================
+export function useSkillMaps(filters?: Record<string, unknown>) {
+  return useQuery({ queryKey: ['skill-maps', filters], queryFn: () => skillMapService.list({ filters }), staleTime: 60_000 });
+}
+
+export function useCreateSkillMap() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: skillMapService.create, onSuccess: () => qc.invalidateQueries({ queryKey: ['skill-maps'] }), onError: (error) => toast.fromError(error) });
 }

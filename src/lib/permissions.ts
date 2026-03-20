@@ -45,6 +45,18 @@ export type MenuSection =
   | 'people-analytics'
   | 'equipment'
   | 'onboarding'
+  // Payroll Extended
+  | 'loans'
+  | 'savings-fund'
+  | 'travel'
+  | 'benefits'
+  // HR Operations
+  | 'movements'
+  | 'separations'
+  | 'shifts'
+  | 'checkins'
+  | 'grievances'
+  | 'skills'
   // Admin panel
   | 'admin-modules'
   | 'admin-roles'
@@ -72,6 +84,10 @@ const PROFILE_MENU_ACCESS: Record<UserProfile, MenuSection[]> = {
     // HR Extended
     'surveys', 'work-climate', 'disabilities', 'discipline',
     'turnover', 'people-analytics', 'equipment', 'onboarding',
+    // Payroll Extended
+    'loans', 'savings-fund', 'travel', 'benefits',
+    // HR Operations
+    'movements', 'separations', 'shifts', 'checkins', 'grievances', 'skills',
     // Admin panel
     'admin-modules', 'admin-roles', 'admin-users', 'admin-catalogs', 'admin-platform',
     // Admin también puede ver el portal
@@ -85,6 +101,10 @@ const PROFILE_MENU_ACCESS: Record<UserProfile, MenuSection[]> = {
     // HR Extended
     'surveys', 'work-climate', 'disabilities', 'discipline',
     'turnover', 'people-analytics', 'equipment', 'onboarding',
+    // Payroll Extended
+    'loans', 'savings-fund', 'travel', 'benefits',
+    // HR Operations
+    'movements', 'separations', 'shifts', 'checkins', 'grievances', 'skills',
     'portal', 'my-profile', 'my-payslips', 'my-attendance',
     'my-training', 'my-organization', 'my-notices',
   ],
@@ -92,6 +112,10 @@ const PROFILE_MENU_ACCESS: Record<UserProfile, MenuSection[]> = {
     'dashboard', 'employees', 'employee-detail', 'attendance', 'payroll', 'organization', 'notices',
     // HR Extended (limited)
     'surveys', 'disabilities', 'discipline', 'equipment', 'onboarding',
+    // Payroll Extended (limited)
+    'loans', 'savings-fund', 'travel', 'benefits',
+    // HR Operations (limited)
+    'movements', 'separations', 'shifts', 'checkins', 'grievances', 'skills',
     'portal', 'my-profile', 'my-payslips', 'my-attendance',
     'my-training', 'my-organization', 'my-notices',
   ],

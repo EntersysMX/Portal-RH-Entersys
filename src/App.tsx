@@ -32,6 +32,17 @@ import Turnover from '@/pages/Turnover';
 import PeopleAnalytics from '@/pages/PeopleAnalytics';
 import EquipmentPage from '@/pages/Equipment';
 import OnboardingPage from '@/pages/Onboarding';
+// New HR modules (batch 2)
+import Loans from '@/pages/Loans';
+import SavingsFund from '@/pages/SavingsFund';
+import Travel from '@/pages/Travel';
+import Benefits from '@/pages/Benefits';
+import Movements from '@/pages/Movements';
+import Separations from '@/pages/Separations';
+import Shifts from '@/pages/Shifts';
+import Checkins from '@/pages/Checkins';
+import Grievances from '@/pages/Grievances';
+import Skills from '@/pages/Skills';
 // Admin panel
 import AdminModules from '@/pages/admin/AdminModules';
 import AdminRoles from '@/pages/admin/AdminRoles';
@@ -336,6 +347,88 @@ export default function App() {
               element={
                 <ProtectedRoute requiredSection="onboarding">
                   <OnboardingPage />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* ========== Payroll Extended & HR Operations ========== */}
+            <Route
+              path="loans"
+              element={
+                <ProtectedRoute requiredSection="loans">
+                  <Loans />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="savings-fund"
+              element={
+                <ProtectedRoute requiredSection="savings-fund">
+                  <SavingsFund />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="travel"
+              element={
+                <ProtectedRoute requiredSection="travel">
+                  <Travel />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="benefits"
+              element={
+                <ProtectedRoute requiredSection="benefits">
+                  <Benefits />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="movements"
+              element={
+                <ProtectedRoute requiredSection="movements">
+                  <Movements />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="separations"
+              element={
+                <ProtectedRoute requiredSection="separations">
+                  <Separations />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shifts"
+              element={
+                <ProtectedRoute requiredSection="shifts">
+                  <Shifts />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="checkins"
+              element={
+                <ProtectedRoute requiredSection="checkins">
+                  <Checkins />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="grievances"
+              element={
+                <ProtectedRoute requiredSection="grievances">
+                  <Grievances />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="skills"
+              element={
+                <ProtectedRoute requiredSection="skills">
+                  <Skills />
                 </ProtectedRoute>
               }
             />

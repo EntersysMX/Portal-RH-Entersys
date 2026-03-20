@@ -4,6 +4,8 @@ import {
   Bell, Home, User, Landmark, Globe,
   ClipboardList, HeartHandshake, ShieldPlus, Scale,
   ArrowLeftRight, PieChart, HardHat, UserCheck,
+  Banknote, PiggyBank, Plane, Gift, ArrowUpDown,
+  UserX, Clock, Fingerprint, MessageSquareWarning, Star,
 } from 'lucide-react';
 import type { ModuleDefinition, ModuleManifest } from './types';
 
@@ -312,6 +314,140 @@ export const ALL_MODULES: ModuleDefinition[] = [
     permissions: standardPerms('onboarding', 'onboarding'),
     navItems: [
       { label: 'Onboarding', path: '/onboarding', icon: UserCheck, section: 'onboarding' },
+    ],
+  },
+
+  // ===== PAYROLL EXTENDED =====
+  {
+    id: 'prestamos',
+    label: 'Préstamos',
+    description: 'Gestión de préstamos a empleados y solicitudes',
+    details: 'Control de préstamos a empleados: solicitudes, aprobación, desembolso, calendario de pagos, seguimiento de saldos pendientes y reportes de cartera de préstamos activos.',
+    icon: Banknote,
+    category: 'payroll',
+    sections: ['loans'],
+    permissions: standardPerms('prestamos', 'préstamos'),
+    navItems: [
+      { label: 'Préstamos', path: '/loans', icon: Banknote, section: 'loans' },
+    ],
+  },
+  {
+    id: 'fondo-ahorro',
+    label: 'Fondo de Ahorro',
+    description: 'Caja de ahorro y fondo de ahorro para empleados',
+    details: 'Gestión de fondo de ahorro empresarial: aportaciones periódicas del empleado y la empresa, rendimientos, retiros parciales o totales, estados de cuenta individuales y reportes de saldos globales.',
+    icon: PiggyBank,
+    category: 'payroll',
+    sections: ['savings-fund'],
+    permissions: standardPerms('fondo-ahorro', 'fondo de ahorro'),
+    navItems: [
+      { label: 'Fondo de Ahorro', path: '/savings-fund', icon: PiggyBank, section: 'savings-fund' },
+    ],
+  },
+  {
+    id: 'viaticos',
+    label: 'Viáticos',
+    description: 'Solicitudes de viaje y control de viáticos',
+    details: 'Gestión de viáticos y solicitudes de viaje: solicitud con itinerario y costos estimados, flujo de aprobación, anticipo de viáticos, comprobación post-viaje y reportes de gastos de viaje por empleado y departamento.',
+    icon: Plane,
+    category: 'payroll',
+    sections: ['travel'],
+    permissions: standardPerms('viaticos', 'viáticos'),
+    navItems: [
+      { label: 'Viáticos', path: '/travel', icon: Plane, section: 'travel' },
+    ],
+  },
+  {
+    id: 'prestaciones',
+    label: 'Prestaciones',
+    description: 'Gestión de prestaciones y beneficios del personal',
+    details: 'Administración de prestaciones: aguinaldo, prima vacacional, vales de despensa, seguro de vida, seguro de gastos médicos mayores, fondo de ahorro, bonos y prestaciones superiores a la ley. Control por empleado con montos y vigencias.',
+    icon: Gift,
+    category: 'payroll',
+    sections: ['benefits'],
+    permissions: standardPerms('prestaciones', 'prestaciones'),
+    navItems: [
+      { label: 'Prestaciones', path: '/benefits', icon: Gift, section: 'benefits' },
+    ],
+  },
+
+  // ===== HR OPERATIONS =====
+  {
+    id: 'movimientos',
+    label: 'Movimientos',
+    description: 'Promociones y transferencias de personal',
+    details: 'Registro de movimientos de personal: promociones (cambio de puesto, ajuste salarial), transferencias entre departamentos o sucursales, historial completo de cambios por empleado y reportes de movilidad interna.',
+    icon: ArrowUpDown,
+    category: 'hr',
+    sections: ['movements'],
+    permissions: standardPerms('movimientos', 'movimientos'),
+    navItems: [
+      { label: 'Movimientos', path: '/movements', icon: ArrowUpDown, section: 'movements' },
+    ],
+  },
+  {
+    id: 'separaciones',
+    label: 'Separaciones',
+    description: 'Procesos de baja y separación de empleados',
+    details: 'Gestión formal de bajas: carta de renuncia, proceso de separación con checklist, entrevista de salida, cálculo de finiquito/liquidación, devolución de activos y desactivación de accesos.',
+    icon: UserX,
+    category: 'hr',
+    sections: ['separations'],
+    permissions: standardPerms('separaciones', 'separaciones'),
+    navItems: [
+      { label: 'Separaciones', path: '/separations', icon: UserX, section: 'separations' },
+    ],
+  },
+  {
+    id: 'turnos',
+    label: 'Turnos',
+    description: 'Gestión de turnos y asignación de horarios',
+    details: 'Configuración de tipos de turno (matutino, vespertino, nocturno, mixto), asignación de turnos a empleados con fechas de vigencia, rotación de turnos y reportes de cobertura por área.',
+    icon: Clock,
+    category: 'hr',
+    sections: ['shifts'],
+    permissions: standardPerms('turnos', 'turnos'),
+    navItems: [
+      { label: 'Turnos', path: '/shifts', icon: Clock, section: 'shifts' },
+    ],
+  },
+  {
+    id: 'checadas',
+    label: 'Checadas',
+    description: 'Registro de checadas y control biométrico',
+    details: 'Registro de checadas de entrada y salida: integración con dispositivos biométricos, log de eventos IN/OUT, detección de anomalías (checada faltante, fuera de horario), y cruce automático con asistencia.',
+    icon: Fingerprint,
+    category: 'hr',
+    sections: ['checkins'],
+    permissions: standardPerms('checadas', 'checadas'),
+    navItems: [
+      { label: 'Checadas', path: '/checkins', icon: Fingerprint, section: 'checkins' },
+    ],
+  },
+  {
+    id: 'quejas',
+    label: 'Quejas',
+    description: 'Gestión de quejas y denuncias del personal',
+    details: 'Sistema de quejas y denuncias laborales: levantamiento de queja con clasificación (acoso, discriminación, condiciones laborales), investigación, seguimiento de estatus, resolución y reportes de clima laboral.',
+    icon: MessageSquareWarning,
+    category: 'hr',
+    sections: ['grievances'],
+    permissions: standardPerms('quejas', 'quejas'),
+    navItems: [
+      { label: 'Quejas', path: '/grievances', icon: MessageSquareWarning, section: 'grievances' },
+    ],
+  },
+  {
+    id: 'habilidades',
+    label: 'Habilidades',
+    description: 'Mapa de habilidades y competencias del personal',
+    details: 'Inventario de habilidades por empleado: registro de competencias técnicas y blandas, nivel de dominio (1-5), evaluaciones periódicas, identificación de brechas de habilidades y planes de desarrollo.',
+    icon: Star,
+    category: 'talent',
+    sections: ['skills'],
+    permissions: standardPerms('habilidades', 'habilidades'),
+    navItems: [
+      { label: 'Habilidades', path: '/skills', icon: Star, section: 'skills' },
     ],
   },
 

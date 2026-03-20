@@ -471,3 +471,175 @@ export interface Notice {
   target_audience: 'all' | string;
   status: 'Active' | 'Inactive';
 }
+
+// ============================================
+// LOAN / PRÉSTAMOS (Frappe HR)
+// ============================================
+export interface Loan {
+  name: string;
+  applicant: string;
+  applicant_name: string;
+  loan_type: string;
+  loan_amount: number;
+  rate_of_interest: number;
+  disbursement_date?: string;
+  repayment_start_date?: string;
+  repayment_periods: number;
+  monthly_repayment_amount: number;
+  total_payment: number;
+  total_amount_paid: number;
+  status: 'Sanctioned' | 'Disbursed' | 'Partially Disbursed' | 'Repaid' | 'Closed';
+  company: string;
+  posting_date: string;
+}
+
+// ============================================
+// TRAVEL REQUEST / VIÁTICOS (Frappe HR)
+// ============================================
+export interface TravelRequest {
+  name: string;
+  employee: string;
+  employee_name: string;
+  travel_type: 'Domestic' | 'International';
+  purpose_of_travel: string;
+  departure_date: string;
+  return_date: string;
+  status: 'Draft' | 'Pending Approval' | 'Approved' | 'Rejected' | 'Cancelled';
+  total_cost?: number;
+  company: string;
+  description?: string;
+}
+
+// ============================================
+// EMPLOYEE PROMOTION (Frappe HR)
+// ============================================
+export interface EmployeePromotion {
+  name: string;
+  employee: string;
+  employee_name: string;
+  promotion_date: string;
+  promotion_details: { property: string; current: string; new: string }[];
+  revised_ctc?: number;
+}
+
+// ============================================
+// EMPLOYEE TRANSFER (Frappe HR)
+// ============================================
+export interface EmployeeTransfer {
+  name: string;
+  employee: string;
+  employee_name: string;
+  transfer_date: string;
+  transfer_details: { property: string; current: string; new: string }[];
+}
+
+// ============================================
+// EMPLOYEE SEPARATION (Frappe HR)
+// ============================================
+export interface EmployeeSeparation {
+  name: string;
+  employee: string;
+  employee_name: string;
+  department: string;
+  designation: string;
+  boarding_status: 'Pending' | 'In Process' | 'Completed';
+  resignation_letter_date?: string;
+  boarding_begins_on?: string;
+  company: string;
+}
+
+// ============================================
+// SHIFT TYPE / SHIFT ASSIGNMENT (Frappe HR)
+// ============================================
+export interface ShiftType {
+  name: string;
+  start_time: string;
+  end_time: string;
+  holiday_list?: string;
+}
+
+export interface ShiftAssignment {
+  name: string;
+  employee: string;
+  employee_name: string;
+  shift_type: string;
+  start_date: string;
+  end_date?: string;
+  status: 'Active' | 'Inactive';
+  company: string;
+}
+
+// ============================================
+// EMPLOYEE CHECKIN (Frappe HR)
+// ============================================
+export interface EmployeeCheckin {
+  name: string;
+  employee: string;
+  employee_name: string;
+  time: string;
+  device_id?: string;
+  log_type: 'IN' | 'OUT';
+  shift?: string;
+}
+
+// ============================================
+// EMPLOYEE GRIEVANCE / QUEJAS (Frappe HR)
+// ============================================
+export interface EmployeeGrievance {
+  name: string;
+  subject: string;
+  raised_by: string;
+  employee: string;
+  employee_name: string;
+  designation: string;
+  department: string;
+  date: string;
+  grievance_type: string;
+  grievance_against_party: string;
+  grievance_against: string;
+  description: string;
+  status: 'Open' | 'Investigated' | 'Resolved' | 'Invalid';
+  resolution_date?: string;
+  resolution_detail?: string;
+}
+
+// ============================================
+// EMPLOYEE SKILL MAP / HABILIDADES (Frappe HR)
+// ============================================
+export interface EmployeeSkillMap {
+  name: string;
+  employee: string;
+  employee_name: string;
+  designation: string;
+  department: string;
+  employee_skills: { skill: string; proficiency: number; evaluation_date?: string }[];
+}
+
+// ============================================
+// FONDO DE AHORRO (Custom - Note-based)
+// ============================================
+export interface SavingsFundEntry {
+  name: string;
+  employee: string;
+  employee_name: string;
+  entry_type: 'Aportación' | 'Retiro' | 'Rendimiento';
+  amount: number;
+  date: string;
+  notes?: string;
+  creation?: string;
+}
+
+// ============================================
+// PRESTACIONES / BENEFICIOS (Custom - Note-based)
+// ============================================
+export interface BenefitEntry {
+  name: string;
+  employee: string;
+  employee_name: string;
+  benefit_type: 'Aguinaldo' | 'Prima Vacacional' | 'Vales de Despensa' | 'Seguro de Vida' | 'Seguro GMM' | 'Fondo de Ahorro' | 'Bono' | 'Otro';
+  amount: number;
+  period?: string;
+  status: 'Active' | 'Inactive';
+  notes?: string;
+  creation?: string;
+}
