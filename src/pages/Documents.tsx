@@ -1,23 +1,23 @@
 import { useState, useRef } from 'react';
 import {
   FileText, Plus, CheckCircle, XCircle, FolderOpen,
-  Trash2, Edit, Printer, Eye,
+  Trash2, Edit, Eye, Upload, File, Download,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import StatsCard from '@/components/ui/StatsCard';
 import DataTable, { Column } from '@/components/ui/DataTable';
 import Modal from '@/components/ui/Modal';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import RoleGuard from '@/components/auth/RoleGuard';
 import {
   useDocumentTemplates,
   useCreateDocumentTemplate,
   useUpdateDocumentTemplate,
   useDeleteDocumentTemplate,
-  useEmployees,
 } from '@/hooks/useFrappe';
-import { useModuleStore } from '@/store/moduleStore';
+import { frappeUploadFile } from '@/api/client';
 import { toast } from '@/components/ui/Toast';
-import type { DocumentTemplate, DocumentCategory, Employee } from '@/types/frappe';
+import type { DocumentTemplate, DocumentCategory } from '@/types/frappe';
 
 // ---- Constants ----
 
@@ -34,80 +34,19 @@ const CATEGORY_COLORS: Record<string, string> = {
   'Otro': 'bg-gray-100 text-gray-700',
 };
 
-const PLACEHOLDERS: { label: string; tag: string; field?: string }[] = [
-  { label: 'Nombre Empleado', tag: '{{nombre_empleado}}', field: 'employee_name' },
-  { label: 'ID Empleado', tag: '{{id_empleado}}', field: 'name' },
-  { label: 'Departamento', tag: '{{departamento}}', field: 'department' },
-  { label: 'Puesto', tag: '{{puesto}}', field: 'designation' },
-  { label: 'Empresa', tag: '{{empresa}}', field: 'company' },
-  { label: 'Fecha Ingreso', tag: '{{fecha_ingreso}}', field: 'date_of_joining' },
-  { label: 'Fecha Nacimiento', tag: '{{fecha_nacimiento}}', field: 'date_of_birth' },
-  { label: 'Genero', tag: '{{genero}}', field: 'gender' },
-  { label: 'Tipo Empleo', tag: '{{tipo_empleo}}', field: 'employment_type' },
-  { label: 'Sucursal', tag: '{{sucursal}}', field: 'branch' },
-  { label: 'Email Personal', tag: '{{email_personal}}', field: 'personal_email' },
-  { label: 'Telefono', tag: '{{telefono}}', field: 'cell_phone' },
-  { label: 'Fecha Actual', tag: '{{fecha_actual}}' },
-  { label: 'Nombre Empresa', tag: '{{nombre_empresa}}' },
-];
-
 // ---- Empty form ----
 
 interface TemplateForm {
   title: string;
   category: DocumentCategory;
   description: string;
-  content: string;
 }
 
 const EMPTY_FORM: TemplateForm = {
   title: '',
   category: 'Contrato',
   description: '',
-  content: '',
 };
-
-// ---- Helpers ----
-
-function replaceAll(str: string, search: string, replacement: string): string {
-  return str.split(search).join(replacement);
-}
-
-function replacePlaceholders(content: string, employee: Employee | null, companyName: string | null): string {
-  let result = content;
-  const today = new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
-
-  if (employee) {
-    const map: Record<string, string> = {
-      '{{nombre_empleado}}': employee.employee_name || '',
-      '{{id_empleado}}': employee.name || '',
-      '{{departamento}}': employee.department || '',
-      '{{puesto}}': employee.designation || '',
-      '{{empresa}}': employee.company || '',
-      '{{fecha_ingreso}}': employee.date_of_joining || '',
-      '{{fecha_nacimiento}}': employee.date_of_birth || '',
-      '{{genero}}': employee.gender || '',
-      '{{tipo_empleo}}': employee.employment_type || '',
-      '{{sucursal}}': employee.branch || '',
-      '{{email_personal}}': employee.personal_email || '',
-      '{{telefono}}': employee.cell_phone || '',
-    };
-    for (const [placeholder, value] of Object.entries(map)) {
-      result = replaceAll(result, placeholder, value);
-    }
-  }
-
-  result = replaceAll(result, '{{fecha_actual}}', today);
-  result = replaceAll(result, '{{nombre_empresa}}', companyName || '');
-  return result;
-}
-
-function highlightPlaceholders(content: string): string {
-  return content.replace(
-    /\{\{[^}]+\}\}/g,
-    (match) => `<span class="inline-block rounded bg-yellow-100 px-1 text-yellow-800 font-mono text-xs">${match}</span>`
-  );
-}
 
 // ============================================
 // COMPONENT
@@ -119,17 +58,21 @@ export default function Documents() {
   const updateMutation = useUpdateDocumentTemplate();
   const deleteMutation = useDeleteDocumentTemplate();
 
-  const branding = useModuleStore((s) => s.branding);
-
   // Editor modal
   const [showEditor, setShowEditor] = useState(false);
   const [editingName, setEditingName] = useState<string | null>(null);
+  const [editingFileUrl, setEditingFileUrl] = useState<string | null>(null);
   const [form, setForm] = useState<TemplateForm>({ ...EMPTY_FORM });
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Generate modal
-  const [showGenerate, setShowGenerate] = useState(false);
-  const [generateTemplate, setGenerateTemplate] = useState<DocumentTemplate | null>(null);
+  // Preview modal
+  const [previewTemplate, setPreviewTemplate] = useState<DocumentTemplate | null>(null);
+
+  // Delete confirm
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   // ---- Stats ----
   const allTemplates = templates ?? [];
@@ -140,24 +83,48 @@ export default function Documents() {
   // ---- Open editor ----
   const openCreate = () => {
     setEditingName(null);
+    setEditingFileUrl(null);
     setForm({ ...EMPTY_FORM });
+    setPdfFile(null);
+    setPdfPreviewUrl(null);
     setShowEditor(true);
   };
 
   const openEdit = (t: DocumentTemplate) => {
     setEditingName(t.name);
+    setEditingFileUrl(t.file_url || null);
     setForm({
       title: t.title,
       category: t.category,
       description: t.description || '',
-      content: t.content,
     });
+    setPdfFile(null);
+    setPdfPreviewUrl(t.file_url || null);
     setShowEditor(true);
   };
 
   const closeEditor = () => {
     setShowEditor(false);
     setEditingName(null);
+    setEditingFileUrl(null);
+    setPdfFile(null);
+    setPdfPreviewUrl(null);
+  };
+
+  // ---- Handle file select ----
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== 'application/pdf') {
+      toast.error('Formato invalido', 'Solo se permiten archivos PDF.');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Archivo muy grande', 'El PDF no debe superar 10 MB.');
+      return;
+    }
+    setPdfFile(file);
+    setPdfPreviewUrl(URL.createObjectURL(file));
   };
 
   // ---- Save ----
@@ -166,12 +133,26 @@ export default function Documents() {
       toast.error('Error', 'El titulo es requerido.');
       return;
     }
-    if (!form.content.trim()) {
-      toast.error('Error', 'El contenido de la plantilla es requerido.');
+
+    // Must have either an existing file or a new file
+    if (!pdfFile && !editingFileUrl) {
+      toast.error('Error', 'Debes subir un archivo PDF.');
       return;
     }
 
     try {
+      setIsUploading(true);
+      let fileUrl = editingFileUrl || '';
+
+      // Upload new PDF if selected
+      if (pdfFile) {
+        const uploaded = await frappeUploadFile({
+          file: pdfFile,
+          is_private: false,
+        });
+        fileUrl = uploaded.file_url;
+      }
+
       if (editingName) {
         await updateMutation.mutateAsync({
           name: editingName,
@@ -179,7 +160,8 @@ export default function Documents() {
             title: form.title,
             category: form.category,
             description: form.description,
-            content: form.content,
+            file_url: fileUrl,
+            content: '',
           },
         });
         toast.success('Actualizada', 'La plantilla se actualizo correctamente.');
@@ -188,7 +170,8 @@ export default function Documents() {
           title: form.title,
           category: form.category,
           description: form.description,
-          content: form.content,
+          file_url: fileUrl,
+          content: '',
           status: 'Active',
         } as Partial<DocumentTemplate>);
         toast.success('Creada', 'La plantilla fue creada exitosamente.');
@@ -197,6 +180,8 @@ export default function Documents() {
     } catch (err) {
       console.error('[Documents] Error al guardar plantilla:', err);
       toast.fromError(err);
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -212,39 +197,15 @@ export default function Documents() {
   };
 
   // ---- Delete ----
-  const handleDelete = async (name: string) => {
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await deleteMutation.mutateAsync(name);
+      await deleteMutation.mutateAsync(deleteTarget);
       toast.success('Eliminada', 'La plantilla fue eliminada.');
+      setDeleteTarget(null);
     } catch (err) {
       toast.fromError(err);
     }
-  };
-
-  // ---- Insert placeholder ----
-  const insertPlaceholder = (tag: string) => {
-    const ta = textareaRef.current;
-    if (!ta) {
-      setForm((prev) => ({ ...prev, content: prev.content + tag }));
-      return;
-    }
-    const start = ta.selectionStart;
-    const end = ta.selectionEnd;
-    const before = form.content.slice(0, start);
-    const after = form.content.slice(end);
-    const newContent = before + tag + after;
-    setForm((prev) => ({ ...prev, content: newContent }));
-    // Restore cursor after React re-render
-    requestAnimationFrame(() => {
-      ta.selectionStart = ta.selectionEnd = start + tag.length;
-      ta.focus();
-    });
-  };
-
-  // ---- Open generate ----
-  const openGenerate = (t: DocumentTemplate) => {
-    setGenerateTemplate(t);
-    setShowGenerate(true);
   };
 
   // ---- Table columns ----
@@ -253,11 +214,16 @@ export default function Documents() {
       key: 'title',
       header: 'Titulo',
       render: (t) => (
-        <div>
-          <p className="font-medium text-gray-900">{t.title}</p>
-          {t.description && (
-            <p className="text-xs text-gray-500 truncate max-w-xs">{t.description}</p>
-          )}
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-red-50">
+            <File className="h-5 w-5 text-red-500" />
+          </div>
+          <div>
+            <p className="font-medium text-gray-900">{t.title}</p>
+            {t.description && (
+              <p className="text-xs text-gray-500 truncate max-w-xs">{t.description}</p>
+            )}
+          </div>
         </div>
       ),
     },
@@ -292,37 +258,53 @@ export default function Documents() {
       ),
     },
     {
-      key: 'actions' as keyof DocumentTemplate,
+      key: 'actions',
       header: 'Acciones',
       render: (t) => (
         <div className="flex gap-1">
           <button
-            onClick={(e) => { e.stopPropagation(); openEdit(t); }}
+            onClick={(e) => { e.stopPropagation(); setPreviewTemplate(t); }}
             className="rounded p-1 text-gray-400 hover:bg-blue-50 hover:text-blue-600"
-            title="Editar"
+            title="Ver PDF"
           >
-            <Edit className="h-4 w-4" />
+            <Eye className="h-4 w-4" />
           </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); openGenerate(t); }}
-            className="rounded p-1 text-gray-400 hover:bg-green-50 hover:text-green-600"
-            title="Generar documento"
-          >
-            <Printer className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); handleDelete(t.name); }}
-            className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
-            title="Eliminar"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
+          <RoleGuard section="documents" action="edit">
+            <button
+              onClick={(e) => { e.stopPropagation(); openEdit(t); }}
+              className="rounded p-1 text-gray-400 hover:bg-amber-50 hover:text-amber-600"
+              title="Editar"
+            >
+              <Edit className="h-4 w-4" />
+            </button>
+          </RoleGuard>
+          {t.file_url && (
+            <a
+              href={t.file_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="rounded p-1 text-gray-400 hover:bg-green-50 hover:text-green-600"
+              title="Descargar PDF"
+            >
+              <Download className="h-4 w-4" />
+            </a>
+          )}
+          <RoleGuard section="documents" action="delete">
+            <button
+              onClick={(e) => { e.stopPropagation(); setDeleteTarget(t.name); }}
+              className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
+              title="Eliminar"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </RoleGuard>
         </div>
       ),
     },
   ];
 
-  const isSaving = createMutation.isPending || updateMutation.isPending;
+  const isSaving = createMutation.isPending || updateMutation.isPending || isUploading;
 
   return (
     <div className="space-y-6">
@@ -330,7 +312,7 @@ export default function Documents() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Documentos</h1>
-          <p className="mt-1 text-gray-500">Plantillas de documentos HR con generacion automatica</p>
+          <p className="mt-1 text-gray-500">Plantillas PDF de documentos HR</p>
         </div>
         <RoleGuard section="documents" action="create">
           <button onClick={openCreate} className="btn-primary">
@@ -355,7 +337,8 @@ export default function Documents() {
         isLoading={isLoading}
         isError={isError}
         onRetry={refetch}
-        emptyMessage="No hay plantillas. Crea la primera desde el boton 'Nueva Plantilla'."
+        onRowClick={(t) => setPreviewTemplate(t)}
+        emptyMessage="No hay plantillas. Sube la primera desde el boton 'Nueva Plantilla'."
       />
 
       {/* ====== EDITOR MODAL ====== */}
@@ -363,7 +346,7 @@ export default function Documents() {
         isOpen={showEditor}
         onClose={closeEditor}
         title={editingName ? 'Editar Plantilla' : 'Nueva Plantilla'}
-        size="xl"
+        size="lg"
         footer={
           <>
             <button onClick={closeEditor} className="btn-secondary">Cancelar</button>
@@ -414,233 +397,148 @@ export default function Documents() {
             </div>
           </div>
 
-          {/* Placeholder buttons */}
+          {/* PDF Upload */}
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Placeholders disponibles</label>
-            <div className="flex flex-wrap gap-1.5">
-              {PLACEHOLDERS.map((p) => (
-                <button
-                  key={p.tag}
-                  type="button"
-                  onClick={() => insertPlaceholder(p.tag)}
-                  className="rounded-md bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-700 ring-1 ring-inset ring-yellow-600/20 transition-colors hover:bg-yellow-100"
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Content textarea */}
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Contenido de la plantilla *</label>
-            <textarea
-              ref={textareaRef}
-              className="input min-h-[250px] font-mono text-sm"
-              value={form.content}
-              onChange={(e) => setForm({ ...form, content: e.target.value })}
-              placeholder="Escribe el contenido del documento aqui. Usa los botones de arriba para insertar placeholders como {{nombre_empleado}}..."
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">Archivo PDF *</label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/pdf"
+              className="hidden"
+              onChange={handleFileSelect}
             />
-          </div>
 
-          {/* Preview */}
-          {form.content.trim() && (
-            <div>
-              <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-gray-700">
-                <Eye className="h-4 w-4" />
-                Vista previa
-              </label>
-              <div
-                className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm leading-relaxed whitespace-pre-wrap"
-                dangerouslySetInnerHTML={{ __html: highlightPlaceholders(form.content) }}
-              />
-            </div>
-          )}
+            {pdfPreviewUrl ? (
+              <div className="space-y-3">
+                {/* PDF preview */}
+                <div className="overflow-hidden rounded-lg border border-gray-200">
+                  <iframe
+                    src={pdfPreviewUrl}
+                    className="h-[400px] w-full"
+                    title="Vista previa del PDF"
+                  />
+                </div>
+                {/* File info + change button */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <File className="h-4 w-4 text-red-500" />
+                    {pdfFile ? (
+                      <span>{pdfFile.name} ({(pdfFile.size / 1024).toFixed(0)} KB)</span>
+                    ) : (
+                      <span>PDF actual</span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="text-sm text-primary-600 hover:text-primary-700"
+                  >
+                    Cambiar archivo
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* Drop zone */
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex w-full flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 py-12 transition-colors hover:border-primary-400 hover:bg-primary-50/30"
+              >
+                <div className="rounded-full bg-primary-100 p-3">
+                  <Upload className="h-6 w-6 text-primary-600" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-medium text-gray-700">
+                    Haz clic para subir un PDF
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    PDF hasta 10 MB
+                  </p>
+                </div>
+              </button>
+            )}
+          </div>
         </div>
       </Modal>
 
-      {/* ====== GENERATE MODAL ====== */}
-      {generateTemplate && (
-        <GenerateDocumentModal
-          isOpen={showGenerate}
-          onClose={() => { setShowGenerate(false); setGenerateTemplate(null); }}
-          template={generateTemplate}
-          companyName={branding.companyName}
-          companyLogoUrl={branding.companyLogoUrl}
-        />
-      )}
-    </div>
-  );
-}
-
-// ============================================
-// GENERATE DOCUMENT MODAL
-// ============================================
-
-function GenerateDocumentModal({
-  isOpen,
-  onClose,
-  template,
-  companyName,
-  companyLogoUrl,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  template: DocumentTemplate;
-  companyName: string | null;
-  companyLogoUrl: string | null;
-}) {
-  const { data: employeesData, isLoading: loadingEmployees } = useEmployees({ status: 'Active' }, 500);
-  const employees = employeesData ?? [];
-
-  const [search, setSearch] = useState('');
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-
-  const filtered = search.trim()
-    ? employees.filter((e) =>
-        e.employee_name.toLowerCase().includes(search.toLowerCase()) ||
-        e.name.toLowerCase().includes(search.toLowerCase())
-      )
-    : employees;
-
-  const documentContent = replacePlaceholders(template.content, selectedEmployee, companyName);
-
-  const handlePrint = () => {
-    window.print();
-  };
-
-  return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={`Generar: ${template.title}`}
-      size="xl"
-      footer={
-        <>
-          <button onClick={onClose} className="btn-secondary">Cerrar</button>
-          {selectedEmployee && (
-            <button onClick={handlePrint} className="btn-primary">
-              <Printer className="h-4 w-4" />
-              Imprimir
-            </button>
-          )}
-        </>
-      }
-    >
-      <div className="space-y-4">
-        {/* Employee selector */}
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">Seleccionar Empleado</label>
-          <input
-            className="input"
-            placeholder="Buscar por nombre o ID..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          {!selectedEmployee && (
-            <div className="mt-2 max-h-[200px] overflow-y-auto rounded-lg border border-gray-200">
-              {loadingEmployees ? (
-                <div className="p-4 text-center text-sm text-gray-500">Cargando empleados...</div>
-              ) : filtered.length === 0 ? (
-                <div className="p-4 text-center text-sm text-gray-500">No se encontraron empleados</div>
-              ) : (
-                filtered.slice(0, 50).map((emp) => (
-                  <button
-                    key={emp.name}
-                    onClick={() => {
-                      setSelectedEmployee(emp);
-                      setSearch(emp.employee_name);
-                    }}
-                    className="flex w-full items-center gap-3 border-b border-gray-100 px-3 py-2 text-left transition-colors hover:bg-blue-50 last:border-0"
-                  >
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-100 text-xs font-semibold text-primary-700">
-                      {emp.employee_name.charAt(0)}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{emp.employee_name}</p>
-                      <p className="text-xs text-gray-500">{emp.name} &middot; {emp.department} &middot; {emp.designation}</p>
-                    </div>
-                  </button>
-                ))
-              )}
-            </div>
-          )}
-          {selectedEmployee && (
-            <div className="mt-2 flex items-center gap-2">
-              <span className="rounded-full bg-primary-100 px-3 py-1 text-sm font-medium text-primary-700">
-                {selectedEmployee.employee_name}
-              </span>
-              <button
-                onClick={() => { setSelectedEmployee(null); setSearch(''); }}
-                className="text-xs text-gray-500 hover:text-red-500"
+      {/* ====== PDF PREVIEW MODAL ====== */}
+      <Modal
+        isOpen={!!previewTemplate}
+        onClose={() => setPreviewTemplate(null)}
+        title={previewTemplate?.title || 'Documento'}
+        size="xl"
+        footer={
+          <>
+            <button onClick={() => setPreviewTemplate(null)} className="btn-secondary">Cerrar</button>
+            {previewTemplate?.file_url && (
+              <a
+                href={previewTemplate.file_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-primary inline-flex items-center gap-2"
               >
-                Cambiar
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Document preview */}
-        <div>
-          <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-gray-700">
-            <Eye className="h-4 w-4" />
-            Vista previa del documento
-          </label>
-
-          {/* Print area */}
-          <div
-            id="document-print-area"
-            className="rounded-lg border border-gray-300 bg-white p-8 shadow-inner"
-          >
-            {/* Letterhead */}
-            <div className="mb-6 flex items-center justify-between border-b border-gray-300 pb-4">
-              <div className="flex items-center gap-3">
-                {companyLogoUrl && (
-                  <img src={companyLogoUrl} alt="Logo" className="h-12 w-12 object-contain" />
-                )}
-                <div>
-                  <p className="text-lg font-bold text-gray-900">{companyName || 'Empresa'}</p>
+                <Download className="h-4 w-4" />
+                Descargar PDF
+              </a>
+            )}
+          </>
+        }
+      >
+        {previewTemplate && (
+          <div className="space-y-4">
+            {/* Template info */}
+            <div className="flex items-center gap-3 rounded-lg bg-gray-50 p-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-50">
+                <File className="h-5 w-5 text-red-500" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-900">{previewTemplate.title}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className={clsx(
+                    'rounded-full px-2 py-0.5 text-[10px] font-medium',
+                    CATEGORY_COLORS[previewTemplate.category] || CATEGORY_COLORS['Otro']
+                  )}>
+                    {previewTemplate.category}
+                  </span>
+                  {previewTemplate.description && (
+                    <span className="text-xs text-gray-500">{previewTemplate.description}</span>
+                  )}
                 </div>
               </div>
-              <p className="text-sm text-gray-500">
-                {new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}
-              </p>
             </div>
 
-            {/* Title */}
-            <h2 className="mb-6 text-center text-xl font-bold text-gray-900 uppercase">
-              {template.title}
-            </h2>
-
-            {/* Body */}
-            <div className="whitespace-pre-wrap text-sm leading-relaxed text-gray-800 text-justify">
-              {selectedEmployee ? (
-                documentContent
-              ) : (
-                <span
-                  dangerouslySetInnerHTML={{ __html: highlightPlaceholders(template.content) }}
+            {/* PDF viewer */}
+            {previewTemplate.file_url ? (
+              <div className="overflow-hidden rounded-lg border border-gray-200">
+                <iframe
+                  src={previewTemplate.file_url}
+                  className="h-[70vh] w-full"
+                  title={previewTemplate.title}
                 />
-              )}
-            </div>
-
-            {/* Signature lines */}
-            <div className="mt-16 grid grid-cols-2 gap-12">
-              <div className="text-center">
-                <div className="mb-2 border-t border-gray-400" />
-                <p className="text-sm font-medium text-gray-700">Firma del Empleado</p>
-                {selectedEmployee && (
-                  <p className="text-xs text-gray-500">{selectedEmployee.employee_name}</p>
-                )}
               </div>
-              <div className="text-center">
-                <div className="mb-2 border-t border-gray-400" />
-                <p className="text-sm font-medium text-gray-700">Firma del Representante</p>
-                <p className="text-xs text-gray-500">{companyName || 'Empresa'}</p>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <FileText className="h-12 w-12 text-gray-300" />
+                <p className="mt-3 text-sm text-gray-500">
+                  Esta plantilla no tiene un PDF asociado.
+                </p>
               </div>
-            </div>
+            )}
           </div>
-        </div>
-      </div>
-    </Modal>
+        )}
+      </Modal>
+
+      {/* ====== DELETE CONFIRM ====== */}
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleConfirmDelete}
+        title="Eliminar plantilla"
+        message="¿Estas seguro de eliminar esta plantilla? Esta accion no se puede deshacer."
+        confirmLabel="Eliminar"
+        isLoading={deleteMutation.isPending}
+        variant="danger"
+      />
+    </div>
   );
 }

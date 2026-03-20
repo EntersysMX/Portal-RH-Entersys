@@ -344,7 +344,8 @@ export interface DocumentTemplate {
   name: string;
   title: string;
   category: DocumentCategory;
-  content: string;           // Texto con {{placeholders}}
+  content: string;           // Texto con {{placeholders}} (legacy, puede estar vacío)
+  file_url?: string;         // URL del PDF subido como plantilla
   status: 'Active' | 'Inactive';
   description?: string;
   creation?: string;
