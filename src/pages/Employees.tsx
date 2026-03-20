@@ -10,7 +10,7 @@ import RoleGuard from '@/components/auth/RoleGuard';
 import ComboSelect from '@/components/ui/ComboSelect';
 import { useEmployees, useCreateEmployee, useUpdateEmployeeStatus, useDeleteEmployee, useDepartments, useDesignations, useCompanies } from '@/hooks/useFrappe';
 import { usePermissions } from '@/hooks/usePermissions';
-import { catalogService, employeeService } from '@/api/services';
+import { catalogService, employeeService, createUserForEmployee } from '@/api/services';
 import { frappeUploadFile } from '@/api/client';
 import { toast } from '@/components/ui/Toast';
 import { downloadEmployeesExcel } from '@/lib/excel/excelGenerator';
@@ -42,6 +42,7 @@ export default function Employees() {
     cell_phone: '',
     personal_email: '',
     company_email: '',
+    rfc: '',
     emergency_contact_name: '',
     emergency_phone: '',
     relation: '',
@@ -212,6 +213,7 @@ export default function Employees() {
       cell_phone: '',
       personal_email: '',
       company_email: '',
+      rfc: '',
       emergency_contact_name: '',
       emergency_phone: '',
       relation: '',
@@ -274,7 +276,25 @@ export default function Employees() {
         }
       }
 
-      toast.success('Empleado creado', 'El empleado se registró correctamente.');
+      // Create user account for the employee (email + RFC as password)
+      const userEmail = newEmployee.personal_email || newEmployee.company_email;
+      if (userEmail && newEmployee.rfc && created?.name) {
+        try {
+          await createUserForEmployee({
+            email: userEmail,
+            firstName: newEmployee.first_name,
+            lastName: newEmployee.last_name,
+            rfc: newEmployee.rfc,
+            employeeId: created.name,
+          });
+        } catch (userErr) {
+          console.error('[Employees] Error al crear usuario:', userErr);
+          toast.warning('Empleado creado', 'Pero no se pudo crear la cuenta de acceso. Verifique que el correo no esté en uso.');
+        }
+      }
+
+      toast.success('Empleado creado', 'El empleado se registró correctamente.' +
+        (userEmail && newEmployee.rfc ? ' Se creó su cuenta de acceso con su RFC como contraseña.' : ''));
       setShowNewModal(false);
       resetForm();
     } catch (err) {
@@ -474,6 +494,17 @@ export default function Employees() {
                   value={newEmployee.date_of_birth}
                   onChange={(e) => setNewEmployee({ ...newEmployee, date_of_birth: e.target.value })}
                 />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">RFC</label>
+                <input
+                  className="input uppercase"
+                  placeholder="XXXX000000XXX"
+                  maxLength={13}
+                  value={newEmployee.rfc}
+                  onChange={(e) => setNewEmployee({ ...newEmployee, rfc: e.target.value.toUpperCase() })}
+                />
+                <p className="mt-1 text-xs text-gray-400">Se usará como contraseña inicial de acceso</p>
               </div>
             </div>
           </div>

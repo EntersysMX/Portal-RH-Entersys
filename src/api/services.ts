@@ -106,6 +106,39 @@ export const employeeService = {
     }),
 };
 
+/**
+ * Crea un usuario de Frappe para un empleado recién creado.
+ * - Email = personal_email o company_email del empleado
+ * - Contraseña = RFC del empleado
+ * - Rol = Employee (el más bajo, solo portal de autoservicio)
+ * - send_welcome_email = 0 para no mandar correo
+ * Si falla (email duplicado, permisos), no bloquea la creación del empleado.
+ */
+export async function createUserForEmployee(params: {
+  email: string;
+  firstName: string;
+  lastName: string;
+  rfc: string;
+  employeeId: string;
+}): Promise<void> {
+  const { email, firstName, lastName, rfc, employeeId } = params;
+
+  // 1. Crear el usuario con contraseña = RFC
+  await frappeCreateDoc('User', {
+    email,
+    first_name: firstName,
+    last_name: lastName,
+    new_password: rfc,
+    send_welcome_email: 0,
+    enabled: 1,
+    user_type: 'Website User',
+    roles: [{ role: 'Employee' }],
+  } as Record<string, unknown>);
+
+  // 2. Vincular el usuario al empleado (user_id)
+  await frappeUpdateDoc('Employee', employeeId, { user_id: email });
+}
+
 // ============================================
 // DEPARTMENT SERVICE
 // ============================================
